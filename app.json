@@ -1,4 +1,9 @@
 {
   "name": "MiniEcommerce",
-  "displayName": "MiniEcommerce"
+  "displayName": "MiniEcommerce",
+  "expo": {
+    "web": {
+      "bundler": "metro"
+    }
+  }
 }

@@ -1,0 +1,6 @@
+{
+  "name": "react-native-worklets",
+  "version": "0.0.0-stub",
+  "description": "Stub plugin for NativeWind on RN 0.80 without native worklets",
+  "main": "index.js"
+}

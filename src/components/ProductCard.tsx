@@ -1,14 +1,23 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Product } from '../data/product';
 
+type ProductCardSize = {
+  width: number;
+};
+
 type ProductCardProps = {
   product: Product;
   onAddToCart: (product: Product) => void;
+  size?: ProductCardSize;
 };
 
-export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  onAddToCart,
+  size,
+}: ProductCardProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, size && { width: size.width }]}>
       <Image source={{ uri: product.img }} style={styles.image} />
       <Text style={styles.name}>{product.name}</Text>
       <Text style={styles.price}>Rp {product.price}</Text>

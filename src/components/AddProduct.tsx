@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 import { Product } from '../data/product';
 import useAddProduct from '../hooks/useAddProduct';
@@ -27,6 +28,20 @@ export default function AddProduct({ onAdd }: AddProductProps) {
     handleSubmit,
   } = useAddProduct(onAdd);
 
+  const handleFormSubmit = () => {
+    if (!name.trim()) {
+      Alert.alert('Peringatan!', 'Nama produk tidak boleh kosong.');
+      return;
+    }
+    if (!price.trim() || isNaN(Number(price))) {
+      Alert.alert(
+        'Peringatan!',
+        'Harga harus berupa angka dan tidak boleh kosong.',
+      );
+      return;
+    }
+    handleSubmit();
+  };
   return (
     <>
       <Pressable style={styles.fab} onPress={openModal}>
@@ -85,7 +100,7 @@ export default function AddProduct({ onAdd }: AddProductProps) {
               </Pressable>
               <Pressable
                 style={[styles.actionButton, styles.saveButton]}
-                onPress={handleSubmit}
+                onPress={handleFormSubmit}
               >
                 <Text style={styles.saveText}>Simpan</Text>
               </Pressable>

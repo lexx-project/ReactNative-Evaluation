@@ -29,7 +29,6 @@ export default function CartModal({
       <Pressable style={styles.trigger} onPress={openModal}>
         <Text style={styles.triggerText}>Preview Keranjang</Text>
       </Pressable>
-
       <Modal
         visible={isVisible}
         transparent

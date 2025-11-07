@@ -7,6 +7,7 @@ import AddProduct from './src/components/AddProduct';
 import CartModal from './src/components/CartModal';
 import productsData, { Product as ProductType } from './src/data/product';
 import useCart from './src/hooks/useCart';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const App = () => {
   const { count, items, addToCart, isModalVisible, openModal, closeModal } =
@@ -25,26 +26,28 @@ const App = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Header
-        count={count}
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        onCartPress={openModal}
-      />
-      <ProductList
-        onAddToCart={addToCart}
-        searchTerm={normalizedSearch}
-        productsData={products}
-      />
-      <AddProduct onAdd={handleAddProduct} />
-      <CartModal
-        items={items}
-        isVisible={isModalVisible}
-        openModal={openModal}
-        closeModal={closeModal}
-      />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <Header
+          count={count}
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          onCartPress={openModal}
+        />
+        <ProductList
+          onAddToCart={addToCart}
+          searchTerm={normalizedSearch}
+          productsData={products}
+        />
+        <AddProduct onAdd={handleAddProduct} />
+        <CartModal
+          items={items}
+          isVisible={isModalVisible}
+          openModal={openModal}
+          closeModal={closeModal}
+        />
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 

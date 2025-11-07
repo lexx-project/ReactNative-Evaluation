@@ -26,7 +26,7 @@ export default function useAddProduct(onAdd: (product: Product) => void) {
       name: name.trim() || 'Produk Baru',
       img:
         imageUrl.trim() ||
-        'https://cdn-icons-png.flaticon.com/512/706/706164.png',
+        'https://upload.lexxganz.my.id/uploads/ProductNotAvailable.png',
       price: price.trim() || '0',
       rating: 0,
     };

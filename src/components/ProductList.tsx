@@ -5,9 +5,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProductCard from './ProductCard';
 import { Product } from '../data/product';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ProductListProps = {
   onAddToCart: (product: Product) => void;
@@ -36,6 +36,7 @@ export default function ProductList({
     (width - 24 - (numColumns - 1) * 16) / numColumns,
     140,
   );
+  const listPaddingBottom = Math.max(insets.bottom + 40, 120);
 
   return (
     <View style={styles.container}>
@@ -53,7 +54,7 @@ export default function ProductList({
         numColumns={numColumns}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: insets.bottom + 40 },
+          { paddingBottom: listPaddingBottom },
         ]}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   listContent: {
-    paddingBottom: 40,
+    paddingBottom: 0,
   },
   emptyState: {
     flex: 1,

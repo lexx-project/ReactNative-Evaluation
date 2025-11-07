@@ -42,7 +42,6 @@ export default function AddProduct({ onAdd }: AddProductProps) {
     }
     handleSubmit();
   };
-
   return (
     <>
       <Pressable style={styles.fab} onPress={openModal}>

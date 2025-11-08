@@ -20,9 +20,10 @@ export default function ProductList({
   searchTerm = '',
   productsData,
 }: ProductListProps) {
-  const filteredProducts = searchTerm
+  const normalizedSearch = searchTerm.toLowerCase().trim();
+  const filteredProducts = normalizedSearch
     ? productsData.filter(product =>
-        product.name.toLowerCase().includes(searchTerm),
+        product.name.toLowerCase().includes(normalizedSearch),
       )
     : productsData;
 
@@ -36,7 +37,7 @@ export default function ProductList({
     (width - 24 - (numColumns - 1) * 16) / numColumns,
     140,
   );
-  const listPaddingBottom = Math.max(insets.bottom + 40, 120);
+  const listPaddingBottom = Math.max(insets.bottom + 20);
 
   return (
     <View style={styles.container}>

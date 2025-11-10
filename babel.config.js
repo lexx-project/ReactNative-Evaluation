@@ -1,6 +1,6 @@
+const nativewind = require('nativewind/babel');
+
 module.exports = {
-  presets: [
-    'module:@react-native/babel-preset',
-    ['nativewind/babel', { enableWorklets: false }],
-  ],
+  presets: ['module:@react-native/babel-preset', 'nativewind/babel'],
+  plugins: ['react-native-reanimated/plugin'],
 };

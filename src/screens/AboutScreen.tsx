@@ -1,4 +1,9 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
+import {
+  NavigationProp,
+  ParamListBase,
+  useNavigation,
+  DrawerActions,
+} from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Image,
@@ -8,17 +13,16 @@ import {
   Text,
   View,
 } from 'react-native';
-
-type RootTabParamList = {
-  Home: undefined;
-  About: undefined;
-};
+import Header from '../components/Header';
+import { useDrawerLock } from '../context/DrawerLockContext';
 
 export default function AboutScreen() {
-  const navigation = useNavigation<NavigationProp<RootTabParamList>>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const { isSwipeEnabled, setSwipeEnabled } = useDrawerLock();
 
   return (
     <SafeAreaView style={styles.container}>
+      <Header />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -53,12 +57,32 @@ export default function AboutScreen() {
             body="Aplikasi dibangun menggunakan React Native 0.80 + TypeScript, NativeWind untuk styling modern, dan React Navigation untuk pengelolaan layar."
           />
         </View>
-        <Pressable
-          style={styles.shopButton}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Text style={styles.shopButtonText}>Pergi Belanja</Text>
-        </Pressable>
+        <View style={styles.controlCard}>
+          <Text style={styles.controlTitle}>Pengaturan Drawer</Text>
+          <Text style={styles.controlStatus}>
+            Swipe Drawer: {isSwipeEnabled ? 'Terbuka' : 'Terkunci'}
+          </Text>
+          <Pressable
+            style={styles.controlButton}
+            onPress={() => setSwipeEnabled(!isSwipeEnabled)}
+          >
+            <Text style={styles.controlButtonText}>
+              {isSwipeEnabled ? 'Kunci Swipe' : 'Buka Kunci Swipe'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => {
+              navigation.navigate('Home', {
+                screen: 'Tabs',
+                params: { screen: 'All' },
+              });
+              navigation.dispatch(DrawerActions.closeDrawer());
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>Ke Home & Tutup Drawer</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -171,6 +195,47 @@ const styles = StyleSheet.create({
   shopButtonText: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  controlCard: {
+    marginTop: 24,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#dbe2ef',
+  },
+  controlTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  controlStatus: {
+    fontSize: 14,
+    color: '#475569',
+  },
+  controlButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  controlButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#0f172a',
     fontWeight: '600',
   },
 });

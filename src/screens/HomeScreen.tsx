@@ -1,14 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
-import { Button, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
 import Header from '../components/Header';
-import ProductList from '../components/ProductList';
 import AddProduct from '../components/AddProduct';
 import CartModal from '../components/CartModal';
-import { useMemo, useState } from 'react';
 import useCart from '../hooks/useCart';
 import productsData, { Product as ProductType } from '../data/product';
+import CategoryTabs from '../components/CategoryTabs';
 
 type RootStackParamList = {
   home: undefined;
@@ -18,7 +19,7 @@ type RootStackParamList = {
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'home'>;
 
 export default function HomeScreen() {
-  const navigation = useNavigation<HomeScreenNavigationProp>();
+  useNavigation<HomeScreenNavigationProp>();
   const { count, items, addToCart, isModalVisible, openModal, closeModal } =
     useCart();
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,20 +36,22 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-    >
+    <SafeAreaView style={styles.container}>
       <Header
         count={count}
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
         onCartPress={openModal}
       />
-      <ProductList
-        onAddToCart={addToCart}
-        searchTerm={normalizedSearch}
-        productsData={products}
-      />
+
+      <View style={styles.body}>
+        <CategoryTabs
+          products={products}
+          onAddToCart={addToCart}
+          searchTerm={normalizedSearch}
+        />
+      </View>
+
       <AddProduct onAdd={handleAddProduct} />
       <CartModal
         items={items}
@@ -59,3 +62,16 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#eaf1fb',
+  },
+  body: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+});

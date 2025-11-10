@@ -29,6 +29,7 @@ export default function useAddProduct(onAdd: (product: Product) => void) {
         'https://upload.lexxganz.my.id/uploads/ProductNotAvailable.png',
       price: price.trim() || '0',
       rating: 0,
+      categories: ['Populer', 'Terbaru'],
     };
 
     onAdd(product);

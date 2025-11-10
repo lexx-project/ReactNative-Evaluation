@@ -1,5 +1,7 @@
+import { useNavigation, DrawerActions } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
+  Button,
   Image,
   Pressable,
   StyleSheet,
@@ -38,9 +40,34 @@ export default function Header({
     }
   };
 
+  const navigation = useNavigation<any>();
+
+  const handleMenuPress = () => {
+    let parent: any = navigation;
+    while (parent) {
+      const state = parent.getState?.();
+      if (state?.type === 'drawer') {
+        parent.dispatch(DrawerActions.openDrawer());
+        return;
+      }
+      parent = parent.getParent?.();
+    }
+
+    navigation.navigate('About');
+  };
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.topRow}>
+        <Pressable onPress={handleMenuPress}>
+          <Image
+            source={{
+              uri: 'https://upload.lexxganz.my.id/uploads/hamburger%20(1).png',
+            }}
+            style={styles.icon}
+          />
+        </Pressable>
+
         <Text style={styles.logoText}>Lexx Store</Text>
         <View style={styles.actions}>
           <Pressable onPress={handleSearchPress} style={styles.iconButton}>

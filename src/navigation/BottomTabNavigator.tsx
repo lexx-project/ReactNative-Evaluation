@@ -1,8 +1,8 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import HomeScreen from '../screens/HomeScreen';
-import ProfileScreen from '../screens/AboutScreen';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import AboutScreen from '../screens/AboutScreen';
+import MainStack from './MainStack';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -10,9 +10,10 @@ export default function BottomTabNavigator() {
   return (
     <Tab.Navigator screenOptions={{ animation: 'fade', headerShown: false }}>
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="HomeStack"
+        component={MainStack}
         options={{
+          title: 'Home',
           tabBarIcon: ({ color }) => (
             <FontAwesome size={28} name="home" color={color} />
           ),
@@ -24,6 +25,15 @@ export default function BottomTabNavigator() {
         options={{
           tabBarIcon: ({ color }) => (
             <FontAwesome name="user" size={28} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <FontAwesome name="id-badge" size={26} color={color} />
           ),
         }}
       />

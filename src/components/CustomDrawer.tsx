@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
 } from '@react-navigation/drawer';
+import { useAuth } from '../context/AuthContext';
 
 const DEFAULT_USER = {
   name: 'Lexy Evandra',
@@ -17,18 +18,40 @@ const EMPTY_USER = {
   avatar: '',
 };
 
-const MENU_ITEMS = [
-  { label: 'Home', route: 'Home', targetTab: 'All' },
-  { label: 'About', route: 'About' },
+type MenuItem = {
+  label: string;
+  targetTab: 'HomeStack' | 'About';
+};
+
+const MENU_ITEMS: MenuItem[] = [
+  { label: 'Home', targetTab: 'HomeStack' },
+  { label: 'About', targetTab: 'About' },
 ];
 
 export default function CustomDrawer(props: DrawerContentComponentProps) {
-  const [user, setUser] = useState(DEFAULT_USER);
+  const { status, logout } = useAuth();
+  const isAuthenticated = status === 'authenticated';
+  const [user, setUser] = useState(
+    isAuthenticated ? DEFAULT_USER : EMPTY_USER,
+  );
 
-  const activeDrawerRoute = props.state.routeNames[props.state.index];
+  useEffect(() => {
+    setUser(isAuthenticated ? DEFAULT_USER : EMPTY_USER);
+  }, [isAuthenticated]);
+
+  const activeTab = (() => {
+    const activeDrawerRoute = props.state.routes[props.state.index];
+    const nestedState: any = activeDrawerRoute?.state;
+    return nestedState?.routes?.[nestedState?.index ?? 0]?.name;
+  })();
   const hasProfile = Boolean(user.name || user.email || user.avatar);
-  const displayName = user.name || 'Tamu';
-  const displayEmail = user.email || 'Belum ada email';
+  const displayName = user.name || 'Gues';
+  const displayEmail = user.email || 'user@example.com';
+
+  const handleAuthToggle = () => {
+    props.navigation.closeDrawer();
+    logout();
+  };
 
   return (
     <View style={styles.container}>
@@ -54,20 +77,19 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
 
         <View style={styles.items}>
           {MENU_ITEMS.map(item => {
-            const isActive = activeDrawerRoute === item.route;
+            const isActive = activeTab === item.targetTab;
 
             return (
               <Pressable
-                key={item.route}
+                key={item.targetTab}
                 onPress={() => {
-                  if (item.route === 'Home') {
-                    props.navigation.navigate('Home', {
-                      screen: 'Tabs',
-                      params: { screen: item.targetTab ?? 'Populer' },
-                    });
-                  } else {
-                    props.navigation.navigate(item.route as never);
-                  }
+                  props.navigation.navigate('MainTabs', {
+                    screen: item.targetTab,
+                    params:
+                      item.targetTab === 'HomeStack'
+                        ? { screen: 'Home' }
+                        : undefined,
+                  } as never);
                   props.navigation.closeDrawer();
                 }}
                 style={[
@@ -90,21 +112,16 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       </DrawerContentScrollView>
 
       <View style={styles.footer}>
-        <Pressable
-          style={[
-            styles.logoutButton,
-            !hasProfile ? styles.logoutButtonDisabled : undefined,
-          ]}
-          onPress={() => setUser(EMPTY_USER)}
-          disabled={!hasProfile}
-        >
+        <Pressable style={styles.logoutButton} onPress={handleAuthToggle}>
           <Image
             source={{
               uri: 'https://upload.lexxganz.my.id/uploads/logout.png',
             }}
             style={styles.logoutIcon}
           />
-          <Text style={styles.logoutText}>Keluar akun</Text>
+          <Text style={styles.logoutText}>
+            {isAuthenticated ? 'Logout' : 'Login'}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -205,9 +222,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingVertical: 8,
-  },
-  logoutButtonDisabled: {
-    opacity: 0.6,
   },
   logoutIcon: {
     width: 20,

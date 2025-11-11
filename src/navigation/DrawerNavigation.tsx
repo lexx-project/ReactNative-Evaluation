@@ -1,7 +1,6 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import CustomDrawer from '../components/CustomDrawer';
-import MainStack from './MainStack';
-import AboutScreen from '../screens/AboutScreen';
+import BottomTabNavigator from './BottomTabNavigator';
 import { useDrawerLock } from '../context/DrawerLockContext';
 const Drawer = createDrawerNavigator();
 
@@ -14,14 +13,9 @@ export default function DrawerNavigation() {
       drawerContent={props => <CustomDrawer {...props} />}
     >
       <Drawer.Screen
-        name="Home"
-        component={MainStack}
+        name="MainTabs"
+        component={BottomTabNavigator}
         options={{ title: 'Home' }}
-      />
-      <Drawer.Screen
-        name="About"
-        component={AboutScreen}
-        options={{ title: 'About' }}
       />
     </Drawer.Navigator>
   );

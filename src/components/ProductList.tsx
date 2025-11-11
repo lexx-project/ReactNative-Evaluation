@@ -13,12 +13,14 @@ type ProductListProps = {
   onAddToCart: (product: Product) => void;
   searchTerm?: string;
   productsData: Product[];
+  onProductPress?: (product: Product) => void;
 };
 
 export default function ProductList({
   onAddToCart,
   searchTerm = '',
   productsData,
+  onProductPress,
 }: ProductListProps) {
   const normalizedSearch = searchTerm.toLowerCase().trim();
   const filteredProducts = normalizedSearch
@@ -50,6 +52,7 @@ export default function ProductList({
             product={item}
             onAddToCart={onAddToCart}
             size={{ width: cardWidth }}
+            onPress={() => onProductPress?.(item)}
           />
         )}
         numColumns={numColumns}

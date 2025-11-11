@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -10,16 +10,15 @@ import CartModal from '../components/CartModal';
 import useCart from '../hooks/useCart';
 import productsData, { Product as ProductType } from '../data/product';
 import CategoryTabs from '../components/CategoryTabs';
+import { MainStackParamList } from '../navigation/types';
 
-type RootStackParamList = {
-  home: undefined;
-  profile: undefined;
-};
-
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'home'>;
+type HomeScreenNavigationProp = NativeStackNavigationProp<
+  MainStackParamList,
+  'Home'
+>;
 
 export default function HomeScreen() {
-  useNavigation<HomeScreenNavigationProp>();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const { count, items, addToCart, isModalVisible, openModal, closeModal } =
     useCart();
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +34,13 @@ export default function HomeScreen() {
     [searchTerm],
   );
 
+  const handleProductPress = (product: ProductType) => {
+    navigation.navigate('ProductDetail', {
+      productId: product.id,
+      product,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Header
@@ -49,6 +55,7 @@ export default function HomeScreen() {
           products={products}
           onAddToCart={addToCart}
           searchTerm={normalizedSearch}
+          onProductPress={handleProductPress}
         />
       </View>
 

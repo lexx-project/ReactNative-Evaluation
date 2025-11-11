@@ -1,4 +1,10 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  GestureResponderEvent,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+} from 'react-native';
 import { Product } from '../data/product';
 
 type ProductCardSize = {
@@ -9,26 +15,34 @@ type ProductCardProps = {
   product: Product;
   onAddToCart: (product: Product) => void;
   size?: ProductCardSize;
+  onPress?: () => void;
 };
 
 export default function ProductCard({
   product,
   onAddToCart,
   size,
+  onPress,
 }: ProductCardProps) {
   return (
-    <View style={[styles.container, size && { width: size.width }]}>
+    <Pressable
+      style={[styles.container, size && { width: size.width }]}
+      onPress={onPress}
+    >
       <Image source={{ uri: product.img }} style={styles.image} />
       <Text style={styles.name}>{product.name}</Text>
       <Text style={styles.price}>Rp {product.price}</Text>
       <Text style={styles.rating}>Rating: {product.rating} / 5</Text>
       <Pressable
         style={styles.addToCartButton}
-        onPress={() => onAddToCart(product)}
+        onPress={(event: GestureResponderEvent) => {
+          event.stopPropagation();
+          onAddToCart(product);
+        }}
       >
         <Text style={styles.addToCartText}>+</Text>
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 

@@ -26,12 +26,14 @@ type CategoryTabsProps = {
   products: Product[];
   onAddToCart: (product: Product) => void;
   searchTerm?: string;
+  onProductPress: (product: Product) => void;
 };
 
 export default function CategoryTabs({
   products,
   onAddToCart,
   searchTerm = '',
+  onProductPress,
 }: CategoryTabsProps) {
   return (
     <Tab.Navigator
@@ -68,6 +70,7 @@ export default function CategoryTabs({
               products={products}
               onAddToCart={onAddToCart}
               searchTerm={searchTerm}
+              onProductPress={onProductPress}
             />
           )}
         </Tab.Screen>
@@ -82,6 +85,7 @@ type CategoryPaneProps = {
   products: Product[];
   onAddToCart: (product: Product) => void;
   searchTerm: string;
+  onProductPress: (product: Product) => void;
 };
 
 function CategoryPane({
@@ -90,6 +94,7 @@ function CategoryPane({
   products,
   onAddToCart,
   searchTerm,
+  onProductPress,
 }: CategoryPaneProps) {
   useFocusEffect(
     useCallback(() => {
@@ -128,6 +133,7 @@ function CategoryPane({
         productsData={filteredProducts}
         onAddToCart={onAddToCart}
         searchTerm=""
+        onProductPress={onProductPress}
       />
     </View>
   );

@@ -1,4 +1,9 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
+import {
+  NavigationProp,
+  RouteProp,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Image,
@@ -8,17 +13,31 @@ import {
   Text,
   View,
 } from 'react-native';
+import { RootStackParamList } from '../../App';
+import Header from '../components/Header';
+import { useCart } from '../context/CartContext';
 
 type RootTabParamList = {
   Home: undefined;
-  About: undefined;
+  About: { userId: string };
 };
+type AboutScreenRouteProp = RouteProp<RootTabParamList, 'About'>;
 
 export default function AboutScreen() {
-  const navigation = useNavigation<NavigationProp<RootTabParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const route = useRoute<AboutScreenRouteProp>();
+
+  const userId = route.params?.userId || 'Tidak ada ID';
+  const { count, items, addToCart, isModalVisible, openModal, closeModal } =
+    useCart();
+
+  const navigateToCheckout = () => {
+    navigation.navigate('Checkout');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
+      <Header count={count} onCartPress={navigateToCheckout} />{' '}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -35,6 +54,7 @@ export default function AboutScreen() {
             Katalog toko online simpel buat kamu eksplor produk dan masukin ke
             keranjang belanja dengan cepat.
           </Text>
+          <Text style={styles.userIdText}>User ID: {userId}</Text>
           <Section
             title="Tentang Aplikasi Ini"
             body="MiniEcommerce bantu kamu lihat daftar produk keren lengkap dengan harga, rating, dan tombol 'Tambah ke Keranjang' yang gampang banget dipake."
@@ -55,7 +75,12 @@ export default function AboutScreen() {
         </View>
         <Pressable
           style={styles.shopButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() =>
+            navigation.navigate('MainTabs', {
+              screen: 'Home',
+              params: { userID: userId },
+            })
+          }
         >
           <Text style={styles.shopButtonText}>Pergi Belanja</Text>
         </Pressable>
@@ -119,6 +144,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 22,
+  },
+  userIdText: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   chipRow: {
     flexDirection: 'row',

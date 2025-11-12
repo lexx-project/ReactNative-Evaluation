@@ -7,7 +7,7 @@ import ProductList from '../components/ProductList';
 import AddProduct from '../components/AddProduct';
 import CartModal from '../components/CartModal';
 import { useMemo, useState } from 'react';
-import useCart from '../hooks/useCart';
+import { useCart } from '../hooks/useCart';
 import productsData, { Product as ProductType } from '../data/product';
 
 type RootStackParamList = {

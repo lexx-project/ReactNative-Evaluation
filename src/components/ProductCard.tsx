@@ -1,9 +1,14 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Product } from '../data/product';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { withDecay } from 'react-native-reanimated';
 
 type ProductCardSize = {
   width: number;
 };
+
+type AnyStackNavigationProp = NativeStackNavigationProp<any>;
 
 type ProductCardProps = {
   product: Product;
@@ -16,19 +21,30 @@ export default function ProductCard({
   onAddToCart,
   size,
 }: ProductCardProps) {
+  const navigation = useNavigation<AnyStackNavigationProp>();
+
+  const handleCartPress = () => {
+    navigation.navigate('ProductDetail', { product: product });
+  };
+
   return (
-    <View style={[styles.container, size && { width: size.width }]}>
-      <Image source={{ uri: product.img }} style={styles.image} />
-      <Text style={styles.name}>{product.name}</Text>
-      <Text style={styles.price}>Rp {product.price}</Text>
-      <Text style={styles.rating}>Rating: {product.rating} / 5</Text>
-      <Pressable
-        style={styles.addToCartButton}
-        onPress={() => onAddToCart(product)}
-      >
-        <Text style={styles.addToCartText}>+</Text>
-      </Pressable>
-    </View>
+    <Pressable
+      style={[styles.container, size && { width: size.width }]}
+      onPress={handleCartPress}
+    >
+      <View style={[styles.container, size && { width: size.width }]}>
+        <Image source={{ uri: product.img }} style={styles.image} />
+        <Text style={styles.name}>{product.name}</Text>
+        <Text style={styles.price}>Rp {product.price}</Text>
+        <Text style={styles.rating}>Rating: {product.rating} / 5</Text>
+        <Pressable
+          style={styles.addToCartButton}
+          onPress={() => onAddToCart(product)}
+        >
+          <Text style={styles.addToCartText}>+</Text>
+        </Pressable>
+      </View>
+    </Pressable>
   );
 }
 

@@ -1,9 +1,10 @@
 import {
-  NavigationProp,
+  CompositeNavigationProp,
   RouteProp,
   useNavigation,
   useRoute,
 } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Image,
@@ -13,27 +14,24 @@ import {
   Text,
   View,
 } from 'react-native';
-import { RootStackParamList } from '../../App';
-import Header from '../components/Header';
-import { useCart } from '../context/CartContext';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MainStackParamList } from '../navigation/MainStack';
 
 type RootTabParamList = {
   Home: undefined;
   About: { userId: string };
 };
 type AboutScreenRouteProp = RouteProp<RootTabParamList, 'About'>;
+type AboutScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<RootTabParamList, 'About'>,
+  NativeStackNavigationProp<MainStackParamList>
+>;
 
 export default function AboutScreen() {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<AboutScreenNavigationProp>();
   const route = useRoute<AboutScreenRouteProp>();
 
   const userId = route.params?.userId || 'Tidak ada ID';
-  const { count, items, addToCart, isModalVisible, openModal, closeModal } =
-    useCart();
-
-  const navigateToCheckout = () => {
-    navigation.navigate('Checkout');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,12 +72,7 @@ export default function AboutScreen() {
         </View>
         <Pressable
           style={styles.shopButton}
-          onPress={() =>
-            navigation.navigate('MainTabs', {
-              screen: 'Home',
-              params: { userID: userId },
-            })
-          }
+          onPress={() => navigation.navigate('Home')}
         >
           <Text style={styles.shopButtonText}>Pergi Belanja</Text>
         </Pressable>

@@ -3,22 +3,26 @@ import ProductList from '../components/ProductList';
 import productsData, { Product } from '../data/product';
 import { useCart } from '../hooks/useCart';
 
+import CategoryScreen from '../screens/CategoryScreen';
+
 const Tab = createMaterialTopTabNavigator();
 
-function ProductListCategory({ category }: { category: string }) {
-  const { addToCart } = useCart();
+function ProductListCategoryWrapper({ category }: { category: string }) {
   const products =
     category === 'Semua'
       ? productsData
       : productsData.filter(p => p.category === category);
 
-  return <ProductList productsData={products} onAddToCart={addToCart} />;
+  return <CategoryScreen category={category} products={products} />;
 }
 
-const getCategories = () => {
-  const categories = productsData.map(p => p.category);
-  return ['Semua', ...new Set(categories)];
-};
+function getCategories(): string[] {
+  const categories = new Set<string>(['Semua']);
+  productsData.forEach(product => {
+    categories.add(product.category);
+  });
+  return Array.from(categories);
+}
 
 export default function ProductTopTabs() {
   const categories = getCategories();
@@ -36,7 +40,7 @@ export default function ProductTopTabs() {
     >
       {categories.map(category => (
         <Tab.Screen key={category} name={category}>
-          {() => <ProductListCategory category={category} />}
+          {() => <ProductListCategoryWrapper category={category} />}
         </Tab.Screen>
       ))}
     </Tab.Navigator>

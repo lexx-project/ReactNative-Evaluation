@@ -1,22 +1,18 @@
-// src/screens/CheckoutScreen.tsx
-
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   ScrollView,
-  FlatList, // 1. Impor FlatList
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 
-// 2. Impor 'useCart'
 import { useCart } from '../hooks/useCart';
-import { Product } from '../data/product'; // Impor tipe Product
+import { Product } from '../data/product';
 
-// (Komponen OrderItem tidak berubah)
 const OrderItem = ({ item }: { item: Product }) => (
   <View style={styles.itemContainer}>
     <View style={styles.itemIcon}>
@@ -52,7 +48,6 @@ export default function CheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* ... (Header Kustom Modal tidak berubah) ... */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Konfirmasi Pesanan</Text>
         <Pressable
@@ -69,18 +64,16 @@ export default function CheckoutScreen() {
             Ringkasan Pesanan ({items.length} produk)
           </Text>
 
-          {/* 5. Tampilkan data asli pakai FlatList */}
           <FlatList
             data={items}
             renderItem={({ item }) => <OrderItem item={item} />}
             keyExtractor={(item, index) => `${item.id}-${index}`}
             ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-            scrollEnabled={false} // Biar tidak double scroll
+            scrollEnabled={false}
           />
 
           <View style={styles.separator} />
 
-          {/* Biaya Layanan */}
           <View style={styles.feeRow}>
             <Text style={styles.feeText}>Biaya Layanan</Text>
             <Text style={styles.feePrice}>
@@ -88,14 +81,12 @@ export default function CheckoutScreen() {
             </Text>
           </View>
 
-          {/* Total Pembayaran */}
           <View style={styles.totalRow}>
             <Text style={styles.totalText}>Total Pembayaran</Text>
             <Text style={styles.totalPrice}>Rp {totalPembayaran}</Text>
           </View>
         </View>
 
-        {/* ... (Metode Pembayaran tidak berubah) ... */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Metode Pembayaran</Text>
           <Pressable style={styles.paymentMethod}>
@@ -106,7 +97,6 @@ export default function CheckoutScreen() {
         </View>
       </ScrollView>
 
-      {/* 6. Arahkan tombol 'Bayar' ke 'handleBayar' */}
       <View style={styles.footer}>
         <Pressable style={styles.payButton} onPress={handleBayar}>
           <Text style={styles.payButtonText}>
@@ -119,8 +109,6 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ... (container, header, closeButton, scrollContainer, card, cardTitle)
-  // ... (Tidak berubah)
   container: {
     flex: 1,
     backgroundColor: '#f0f4f7',
@@ -165,7 +153,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // (Style OrderItem tidak berubah)
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -190,19 +177,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
   },
-  // (Style baru untuk pemisah item)
   itemSeparator: {
     height: 12,
   },
-
-  // (Separator utama)
   separator: {
     height: 1,
     backgroundColor: '#e4e7ec',
-    marginVertical: 16, // Ubah dari 12
+    marginVertical: 16,
   },
 
-  // (Style baru untuk rincian biaya)
   feeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -218,7 +201,6 @@ const styles = StyleSheet.create({
     color: '#555',
   },
 
-  // (Style total)
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -227,17 +209,14 @@ const styles = StyleSheet.create({
   },
   totalText: {
     fontSize: 16,
-    fontWeight: 'bold', // Ubah dari 500
-    color: '#1e2530', // Ubah dari #333
+    fontWeight: 'bold',
+    color: '#1e2530',
   },
   totalPrice: {
-    fontSize: 20, // Ubah dari 18
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1e90ff',
   },
-
-  // ... (paymentMethod, paymentText, footer, payButton, payButtonText)
-  // ... (Tidak berubah)
   paymentMethod: {
     flexDirection: 'row',
     alignItems: 'center',

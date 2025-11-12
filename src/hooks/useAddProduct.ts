@@ -28,6 +28,8 @@ export default function useAddProduct(onAdd: (product: Product) => void) {
         imageUrl.trim() ||
         'https://upload.lexxganz.my.id/uploads/ProductNotAvailable.png',
       price: price.trim() || '0',
+      description: '',
+      category: 'Lain-lain',
       rating: 0,
     };
 

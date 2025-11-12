@@ -1,22 +1,27 @@
-import { useMemo, useState } from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import { Product as ProductType } from './src/data/product';
+import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import LoginScreen from './src/screens/LoginScreen';
-import ProductDetailScreen from './src/screens/ProductDetailScreen';
-import CheckoutScreen from './src/screens/CheckoutScreen';
-import { CartProvider } from './src/context/CartContext';
+import AppDrawer from './src/navigation/AppDrawer';
+import { CartProvider } from './src/hooks/useCart';
+import { AuthProvider } from './src/context/AuthContext';
 
-const Stack = createNativeStackNavigator();
-
-export type RootStackParamList = {
+export type RootAuthStackParamList = {
   Login: undefined;
-  MainTabs: { screen: string; params: { userID: string } };
-  ProductDetail: { product: ProductType };
-  Checkout: undefined;
+  MainApp: undefined;
+};
+
+const Stack = createNativeStackNavigator<RootAuthStackParamList>();
+
+const AppContent = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="MainApp" component={AppDrawer} />
+    </Stack.Navigator>
+  );
 };
 
 const App = () => {
@@ -24,49 +29,13 @@ const App = () => {
     <SafeAreaProvider>
       <CartProvider>
         <NavigationContainer>
-          <Stack.Navigator>
-            <Stack.Group>
-              {/* <Stack.Screen
-                name="Login"
-                component={LoginScreen}
-                options={{ headerShown: false }}
-              /> */}
-              <Stack.Screen
-                name="MainTabs"
-                component={BottomTabNavigator}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="ProductDetail"
-                component={ProductDetailScreen}
-                options={({ route }) => ({
-                  title:
-                    (route.params as { product: ProductType })?.product.name ||
-                    'Detail Produk',
-                  headerShown: false,
-                })}
-              />
-            </Stack.Group>
-            <Stack.Group
-              screenOptions={{
-                presentation: 'modal',
-                headerShown: false,
-              }}
-            >
-              <Stack.Screen name="Checkout" component={CheckoutScreen} />
-            </Stack.Group>
-          </Stack.Navigator>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
         </NavigationContainer>
       </CartProvider>
     </SafeAreaProvider>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});
 
 export default App;

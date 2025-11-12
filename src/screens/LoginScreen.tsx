@@ -12,14 +12,10 @@ import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
-
-type RootStackParamList = {
-  Login: undefined;
-  MainTabs: { screen: string; params: { userId: string } };
-};
+import { RootAuthStackParamList } from '../../App';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
+  RootAuthStackParamList,
   'Login'
 >;
 
@@ -30,11 +26,7 @@ export default function LoginScreen() {
 
   const handleLogin = () => {
     if (username.trim() === 'admin' && password.trim() === 'admin123') {
-      console.log('Login Sukses');
-      navigation.replace('MainTabs', {
-        screen: 'About',
-        params: { userId: '12345678' },
-      });
+      navigation.replace('MainApp');
     } else {
       console.log('Login Gagal');
       Alert.alert(

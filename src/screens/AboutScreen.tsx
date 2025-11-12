@@ -37,7 +37,6 @@ export default function AboutScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header count={count} onCartPress={navigateToCheckout} />{' '}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

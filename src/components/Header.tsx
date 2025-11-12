@@ -7,19 +7,25 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { MainStackParamList } from '../navigation/MainStack';
 
 type HeaderProps = {
   count?: number;
   searchValue?: string;
   onSearchChange?: (text: string) => void;
   onCartPress?: () => void;
+  onMenuPress?: () => void;
+  onAddPress?: () => void;
 };
 
 export default function Header({
   count = 0,
   searchValue = '',
   onSearchChange,
-  onCartPress,
+  onMenuPress,
+  onAddPress,
 }: HeaderProps) {
   const [isSearching, setIsSearching] = useState(false);
 
@@ -38,11 +44,32 @@ export default function Header({
     }
   };
 
+  const navigation = useNavigation<NavigationProp<MainStackParamList>>();
+
+  const onCartPress = () => {
+    if (onCartPress) {
+      onCartPress();
+    } else {
+      navigation.navigate('Checkout');
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.topRow}>
+        <Pressable onPress={onMenuPress} style={styles.iconButton}>
+          <FontAwesome name="bars" size={22} color="#fff" />
+        </Pressable>
+
         <Text style={styles.logoText}>Lexx Store</Text>
+
         <View style={styles.actions}>
+          {onAddPress && (
+            <Pressable onPress={onAddPress} style={styles.iconButton}>
+              <FontAwesome name="plus" size={22} color="#fff" />
+            </Pressable>
+          )}
+
           <Pressable onPress={handleSearchPress} style={styles.iconButton}>
             <Image
               source={{
@@ -51,6 +78,7 @@ export default function Header({
               style={styles.icon}
             />
           </Pressable>
+
           <Pressable style={styles.cartWrapper} onPress={onCartPress}>
             <Image
               source={{
@@ -68,6 +96,7 @@ export default function Header({
           </Pressable>
         </View>
       </View>
+
       {isSearching && (
         <View style={styles.searchWrapper}>
           <Image
@@ -104,7 +133,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   iconButton: {
     padding: 6,
@@ -113,6 +142,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#fff',
     fontWeight: 'bold',
+    position: 'absolute',
+    left: '50%',
+    transform: [{ translateX: -50 }],
   },
   cartWrapper: {
     position: 'relative',

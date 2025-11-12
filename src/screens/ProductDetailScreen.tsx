@@ -8,15 +8,15 @@ import {
   Pressable,
 } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { RootStackParamList } from '../../App';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../context/CartContext';
 import Header from '../components/Header';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { MainStackParamList } from '../navigation/MainStack';
 
-type ProductDetailRouteProp = RouteProp<RootStackParamList, 'ProductDetail'>;
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type ProductDetailRouteProp = RouteProp<MainStackParamList, 'ProductDetail'>;
+type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 export default function ProductDetailScreen() {
   const route = useRoute<ProductDetailRouteProp>();

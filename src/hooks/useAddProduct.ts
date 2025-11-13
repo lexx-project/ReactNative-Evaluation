@@ -21,16 +21,25 @@ export default function useAddProduct(onAdd: (product: Product) => void) {
   };
 
   const handleSubmit = () => {
+    const normalizedPrice = price
+      .replace(/\./g, '')
+      .replace(',', '.')
+      .trim();
+    const numericPrice = Number(normalizedPrice) || 0;
+
     const product: Product = {
       id: Date.now(),
-      name: name.trim() || 'Produk Baru',
-      img:
+      title: name.trim() || 'Produk Baru',
+      image:
         imageUrl.trim() ||
         'https://upload.lexxganz.my.id/uploads/ProductNotAvailable.png',
-      price: price.trim() || '0',
+      price: numericPrice,
       description: '',
       category: 'Lain-lain',
-      rating: 0,
+      rating: {
+        rate: 0,
+        count: 0,
+      },
     };
 
     onAdd(product);

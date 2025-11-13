@@ -9,9 +9,17 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import NetInfo, { NetInfoStateType } from '@react-native-community/netinfo';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useCart } from '../hooks/useCart';
 import { Product } from '../data/product';
+import apiClient from '../api/client';
+
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
 
 const OrderItem = ({ item }: { item: Product }) => (
   <View style={styles.itemContainer}>
@@ -19,30 +27,80 @@ const OrderItem = ({ item }: { item: Product }) => (
       <FontAwesome name="shopping-basket" size={18} color="#1e90ff" />
     </View>
     <View style={styles.itemDetails}>
-      <Text style={styles.itemName}>{item.name}</Text>
-      <Text style={styles.itemPrice}>Rp {item.price}</Text>
+      <Text style={styles.itemName}>{item.title}</Text>
+      <Text style={styles.itemPrice}>{usdFormatter.format(item.price)}</Text>
     </View>
   </View>
 );
 
 export default function CheckoutScreen() {
   const navigation = useNavigation();
+  const { items } = useCart();
+  const [connectionType, setConnectionType] =
+    useState<NetInfoStateType>('unknown');
+  const [syncedSubtotal, setSyncedSubtotal] = useState(0);
+  const [pollingPaused, setPollingPaused] = useState(false);
 
-  const { items, clearCart } = useCart();
+  const subtotal = useMemo(
+    () => items.reduce((sum, item) => sum + item.price, 0),
+    [items],
+  );
 
-  const calculateTotal = () => {
-    const total = items.reduce((sum, item) => {
-      const priceAsNumber = parseFloat(item.price.replace(/\./g, ''));
-      return sum + priceAsNumber;
-    }, 0);
-    return total.toLocaleString('id-ID');
-  };
+  useEffect(() => {
+    setSyncedSubtotal(subtotal);
+  }, [subtotal]);
 
-  const totalHarga = calculateTotal();
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setConnectionType(state.type);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isMounted = true;
+
+    const fetchCartTotal = async () => {
+      try {
+        const response = await apiClient.get('/carts/1');
+        if (!isMounted) {
+          return;
+        }
+        if (typeof response.data?.total === 'number') {
+          setSyncedSubtotal(response.data.total);
+        }
+      } catch (err) {
+        if (isMounted) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : // axios error object might have message prop
+                (err as { message?: string })?.message ?? 'Unknown error';
+          console.warn('Gagal memperbarui total keranjang:', message);
+        }
+      }
+    };
+
+    if (connectionType !== 'cellular') {
+      fetchCartTotal();
+      intervalId = setInterval(fetchCartTotal, 15000);
+      setPollingPaused(false);
+    } else {
+      setPollingPaused(true);
+    }
+
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [connectionType]);
+
   const biayaLayanan = 2000;
-  const totalPembayaran = (
-    parseFloat(totalHarga.replace(/\./g, '')) + biayaLayanan
-  ).toLocaleString('id-ID');
+  const effectiveSubtotal = syncedSubtotal || subtotal;
+  const totalPembayaran = effectiveSubtotal + biayaLayanan;
 
   const handleBayar = () => {};
 
@@ -77,14 +135,29 @@ export default function CheckoutScreen() {
           <View style={styles.feeRow}>
             <Text style={styles.feeText}>Biaya Layanan</Text>
             <Text style={styles.feePrice}>
-              Rp {biayaLayanan.toLocaleString('id-ID')}
+              {usdFormatter.format(biayaLayanan)}
             </Text>
           </View>
 
           <View style={styles.totalRow}>
             <Text style={styles.totalText}>Total Pembayaran</Text>
-            <Text style={styles.totalPrice}>Rp {totalPembayaran}</Text>
+            <Text style={styles.totalPrice}>
+              {usdFormatter.format(totalPembayaran)}
+            </Text>
           </View>
+
+          <Text style={styles.syncNote}>
+            Total tersinkron: {usdFormatter.format(effectiveSubtotal)}
+          </Text>
+          <Text style={styles.syncNote}>
+            Koneksi saat ini: {connectionType}
+          </Text>
+          {pollingPaused && (
+            <Text style={styles.syncWarning}>
+              Polling dimatikan sementara pada jaringan seluler untuk hemat
+              kuota.
+            </Text>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -100,7 +173,7 @@ export default function CheckoutScreen() {
       <View style={styles.footer}>
         <Pressable style={styles.payButton} onPress={handleBayar}>
           <Text style={styles.payButtonText}>
-            Bayar Sekarang (Rp {totalPembayaran})
+            Bayar Sekarang ({usdFormatter.format(totalPembayaran)})
           </Text>
         </Pressable>
       </View>
@@ -216,6 +289,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1e90ff',
+  },
+  syncNote: {
+    marginTop: 8,
+    color: '#5a6270',
+  },
+  syncWarning: {
+    marginTop: 6,
+    color: '#ff4757',
+    fontWeight: '600',
   },
   paymentMethod: {
     flexDirection: 'row',

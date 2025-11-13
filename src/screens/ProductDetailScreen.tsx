@@ -15,6 +15,11 @@ import Header from '../components/Header';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { MainStackParamList } from '../navigation/MainStack';
 
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
 type ProductDetailRouteProp = RouteProp<MainStackParamList, 'ProductDetail'>;
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -24,7 +29,7 @@ export default function ProductDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height; // Untuk orientasi layar
-  const { addToCart } = useCart();
+  const { addToCart, count } = useCart();
 
   const containerStyle = isLandscape
     ? styles.containerLandscape
@@ -35,8 +40,6 @@ export default function ProductDetailScreen() {
   const contentStyle = isLandscape
     ? styles.contentLandscape
     : styles.contentPortrait;
-
-  const { count, openModal } = useCart();
 
   const navigateToCheckout = () => {
     navigation.navigate('Checkout');
@@ -58,14 +61,19 @@ export default function ProductDetailScreen() {
         </Pressable>
         <View style={[styles.container, containerStyle]}>
           <Image
-            source={{ uri: product.img }}
+            source={{ uri: product.image }}
             style={[styles.image, imageStyle]}
           />
 
           <View style={[styles.content, contentStyle]}>
-            <Text style={styles.name}>{product.name}</Text>
-            <Text style={styles.price}>Rp {product.price}</Text>
-            <Text style={styles.rating}>Rating: {product.rating} / 5</Text>
+            <Text style={styles.name}>{product.title}</Text>
+            <Text style={styles.price}>
+              {usdFormatter.format(product.price)}
+            </Text>
+            <Text style={styles.rating}>
+              Rating: {product.rating.rate} / 5 ({product.rating.count}{' '}
+              ulasan)
+            </Text>
             <Text style={styles.description}>{product.description}</Text>
           </View>
           <View

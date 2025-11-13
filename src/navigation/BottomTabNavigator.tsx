@@ -1,10 +1,16 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
-import ProfileScreen from '../screens/AboutScreen';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import AboutScreen from '../screens/AboutScreen';
+import ProductListScreen from '../screens/ProductListScreen';
 
-const Tab = createBottomTabNavigator();
+export type BottomTabsParamList = {
+  Home: undefined;
+  Products: undefined;
+  About: undefined;
+};
+
+const Tab = createBottomTabNavigator<BottomTabsParamList>();
 
 export default function BottomTabNavigator() {
   return (
@@ -15,6 +21,15 @@ export default function BottomTabNavigator() {
         options={{
           tabBarIcon: ({ color }) => (
             <FontAwesome size={28} name="home" color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Products"
+        component={ProductListScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <FontAwesome name="th-list" size={26} color={color} />
           ),
         }}
       />

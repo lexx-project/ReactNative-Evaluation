@@ -2,7 +2,6 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Product } from '../data/product';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { withDecay } from 'react-native-reanimated';
 
 type ProductCardSize = {
   width: number;
@@ -15,6 +14,11 @@ type ProductCardProps = {
   onAddToCart: (product: Product) => void;
   size?: ProductCardSize;
 };
+
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
 
 export default function ProductCard({
   product,
@@ -29,75 +33,98 @@ export default function ProductCard({
 
   return (
     <Pressable
-      style={[styles.container, size && { width: size.width }]}
+      style={[styles.card, size && { width: size.width }]}
       onPress={handleCartPress}
     >
-      <View style={[styles.container, size && { width: size.width }]}>
-        <Image source={{ uri: product.img }} style={styles.image} />
-        <Text style={styles.name}>{product.name}</Text>
-        <Text style={styles.price}>{product.price}</Text>
-        <Text style={styles.rating}>Rating: {product.rating} / 5</Text>
-        <Pressable
-          style={styles.addToCartButton}
-          onPress={() => onAddToCart(product)}
-        >
-          <Text style={styles.addToCartText}>+</Text>
-        </Pressable>
+      <View style={styles.imageWrapper}>
+        <Image source={{ uri: product.image }} style={styles.image} />
       </View>
+
+      <View style={styles.content}>
+        <Text style={styles.name} numberOfLines={2}>
+          {product.title}
+        </Text>
+        <Text style={styles.price}>{usdFormatter.format(product.price)}</Text>
+        <Text style={styles.rating} numberOfLines={1}>
+          Rating {product.rating.rate.toFixed(1)} · {product.rating.count}{' '}
+          reviews
+        </Text>
+      </View>
+
+      <Pressable
+        style={styles.addToCartButton}
+        onPress={() => onAddToCart(product)}
+        hitSlop={8}
+      >
+        <Text style={styles.addToCartText}>+</Text>
+      </Pressable>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: 150,
-    height: 230,
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginHorizontal: 8,
-    marginBottom: 16,
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: '#4c5761',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    marginHorizontal: 0,
+    marginBottom: 14,
+  },
+  imageWrapper: {
+    height: 140,
+    borderRadius: 10,
+    backgroundColor: '#f3f6fb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   image: {
     width: '100%',
-    height: 150,
-    borderRadius: 8,
+    height: '100%',
     resizeMode: 'contain',
   },
+  content: {
+    gap: 6,
+    paddingRight: 8,
+  },
   name: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e2530',
   },
   price: {
     fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
+    color: '#1e90ff',
+    fontWeight: '600',
   },
   rating: {
     fontSize: 12,
-    color: '#555',
+    color: '#6c7693',
   },
   addToCartButton: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#1e90ff',
-    borderRadius: 5,
-    padding: 4,
-    width: 30,
-    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#1e90ff',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   addToCartText: {
-    fontSize: 20,
     color: '#fff',
-    lineHeight: 20,
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '700',
   },
 });

@@ -12,14 +12,17 @@ import { Product } from '../data/product';
 type CartModalProps = {
   items: Product[];
   isVisible: boolean;
-  openModal: () => void;
   closeModal: () => void;
 };
+
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
 
 export default function CartModal({
   items,
   isVisible,
-  openModal,
   closeModal,
 }: CartModalProps) {
   const hasItems = items.length > 0;
@@ -59,14 +62,17 @@ export default function CartModal({
                     <View key={`${item.id}-${index}`}>
                       <View style={styles.itemRow}>
                         <Image
-                          source={{ uri: item.img }}
+                          source={{ uri: item.image }}
                           style={styles.thumbnail}
                         />
                         <View style={styles.itemContent}>
-                          <Text style={styles.itemName}>{item.name}</Text>
-                          <Text style={styles.itemPrice}>Rp {item.price}</Text>
+                          <Text style={styles.itemName}>{item.title}</Text>
+                          <Text style={styles.itemPrice}>
+                            {usdFormatter.format(item.price)}
+                          </Text>
                           <Text style={styles.itemRating}>
-                            Rating: {item.rating} / 5
+                            Rating: {item.rating.rate} / 5 (
+                            {item.rating.count} ulasan)
                           </Text>
                         </View>
                       </View>

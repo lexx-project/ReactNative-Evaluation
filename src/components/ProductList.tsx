@@ -23,7 +23,7 @@ export default function ProductList({
   const normalizedSearch = searchTerm.toLowerCase().trim();
   const filteredProducts = normalizedSearch
     ? productsData.filter(product =>
-        product.name.toLowerCase().includes(normalizedSearch),
+        product.title.toLowerCase().includes(normalizedSearch),
       )
     : productsData;
 
@@ -53,10 +53,15 @@ export default function ProductList({
           />
         )}
         numColumns={numColumns}
+        columnWrapperStyle={
+          numColumns > 1 ? styles.columnWrapper : undefined
+        }
         contentContainerStyle={[
           styles.listContent,
+          styles.listContentHorizontalPadding,
           { paddingBottom: listPaddingBottom },
         ]}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>Produk tidak ditemukan</Text>
@@ -70,12 +75,17 @@ export default function ProductList({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 10,
-    backgroundColor: '#f5f5f5',
-    padding: 12,
+    backgroundColor: '#eef2f7',
+    paddingVertical: 12,
   },
   listContent: {
     paddingBottom: 0,
+  },
+  listContentHorizontalPadding: {
+    paddingHorizontal: 12,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
   emptyState: {
     flex: 1,

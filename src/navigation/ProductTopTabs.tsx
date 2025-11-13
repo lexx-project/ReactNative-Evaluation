@@ -1,31 +1,54 @@
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import ProductList from '../components/ProductList';
-import productsData, { Product } from '../data/product';
-import { useCart } from '../hooks/useCart';
-
+import { useMemo } from 'react';
+import { Product } from '../data/product';
 import CategoryScreen from '../screens/CategoryScreen';
+import { useProducts } from '../hooks/useProducts';
 
 const Tab = createMaterialTopTabNavigator();
 
-function ProductListCategoryWrapper({ category }: { category: string }) {
-  const products =
+type ProductListCategoryWrapperProps = {
+  category: string;
+  products: Product[];
+  isLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+};
+
+function ProductListCategoryWrapper({
+  category,
+  products,
+  isLoading,
+  error,
+  onRetry,
+}: ProductListCategoryWrapperProps) {
+  const filteredProducts =
     category === 'Semua'
-      ? productsData
-      : productsData.filter(p => p.category === category);
+      ? products
+      : products.filter(product => product.category === category);
 
-  return <CategoryScreen category={category} products={products} />;
-}
-
-function getCategories(): string[] {
-  const categories = new Set<string>(['Semua']);
-  productsData.forEach(product => {
-    categories.add(product.category);
-  });
-  return Array.from(categories);
+  return (
+    <CategoryScreen
+      category={category}
+      products={filteredProducts}
+      isLoading={isLoading}
+      error={error}
+      onRetry={onRetry}
+    />
+  );
 }
 
 export default function ProductTopTabs() {
-  const categories = getCategories();
+  const { products, isLoading, error, refetch } = useProducts();
+
+  const categories = useMemo(() => {
+    const categorySet = new Set<string>(['Semua']);
+    products.forEach(product => {
+      if (product.category) {
+        categorySet.add(product.category);
+      }
+    });
+    return Array.from(categorySet);
+  }, [products]);
 
   return (
     <Tab.Navigator
@@ -40,7 +63,15 @@ export default function ProductTopTabs() {
     >
       {categories.map(category => (
         <Tab.Screen key={category} name={category}>
-          {() => <ProductListCategoryWrapper category={category} />}
+          {() => (
+            <ProductListCategoryWrapper
+              category={category}
+              products={products}
+              isLoading={isLoading}
+              error={error}
+              onRetry={refetch}
+            />
+          )}
         </Tab.Screen>
       ))}
     </Tab.Navigator>

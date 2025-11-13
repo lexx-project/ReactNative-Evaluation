@@ -26,6 +26,7 @@ export default function Header({
   onSearchChange,
   onMenuPress,
   onAddPress,
+  onCartPress,
 }: HeaderProps) {
   const [isSearching, setIsSearching] = useState(false);
 
@@ -46,12 +47,12 @@ export default function Header({
 
   const navigation = useNavigation<NavigationProp<MainStackParamList>>();
 
-  const onCartPress = () => {
+  const handleCartPress = () => {
     if (onCartPress) {
-      onCartPress();
-    } else {
       navigation.navigate('Checkout');
+      return;
     }
+    navigation.navigate('Checkout');
   };
 
   return (
@@ -79,7 +80,7 @@ export default function Header({
             />
           </Pressable>
 
-          <Pressable style={styles.cartWrapper} onPress={onCartPress}>
+          <Pressable style={styles.cartWrapper} onPress={handleCartPress}>
             <Image
               source={{
                 uri: 'https://upload.lexxganz.my.id/uploads/cart%20(1).png',

@@ -7,11 +7,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import AppDrawer from './src/navigation/AppDrawer';
 import { CartProvider } from './src/hooks/useCart';
 import { AuthProvider } from './src/context/AuthContext';
-
-export type RootAuthStackParamList = {
-  Login: undefined;
-  MainApp: undefined;
-};
+import { RootAuthStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootAuthStackParamList>();
 

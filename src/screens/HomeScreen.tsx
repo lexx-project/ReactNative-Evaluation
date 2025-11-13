@@ -4,7 +4,7 @@ import { useCart } from '../hooks/useCart';
 import CartModal from '../components/CartModal';
 
 export default function HomeScreen() {
-  const { items, isModalVisible, openModal, closeModal } = useCart();
+  const { items, isModalVisible, closeModal } = useCart();
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
@@ -12,7 +12,6 @@ export default function HomeScreen() {
       <CartModal
         items={items}
         isVisible={isModalVisible}
-        openModal={openModal}
         closeModal={closeModal}
       />
     </SafeAreaView>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -38,7 +38,7 @@ function CustomHeader() {
 
 export default function MainStack() {
   const handleAddProduct = (product: Product) => {
-    console.log('Produk baru ditambah:', product.name);
+    console.log('Produk baru ditambah:', product.title);
   };
 
   return (
@@ -57,7 +57,7 @@ export default function MainStack() {
             name="ProductDetail"
             component={ProductDetailScreen}
             options={({ route }) => ({
-              title: route.params.product.name,
+              title: route.params.product.title,
               headerShown: false,
             })}
           />

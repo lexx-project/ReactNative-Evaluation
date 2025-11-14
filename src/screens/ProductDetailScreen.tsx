@@ -6,6 +6,9 @@ import {
   useWindowDimensions,
   ScrollView,
   Pressable,
+  ActivityIndicator,
+  Platform,
+  ToastAndroid,
 } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +16,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../context/CartContext';
 import Header from '../components/Header';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useCallback, useEffect, useState } from 'react';
 import { MainStackParamList } from '../navigation/MainStack';
+import apiClient from '../api/client';
+import { Product } from '../data/product';
 
 const usdFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -30,6 +36,102 @@ export default function ProductDetailScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height; // Untuk orientasi layar
   const { addToCart, count } = useCart();
+  const [remoteProduct, setRemoteProduct] = useState<Product>(product);
+  const [isFallbackData, setIsFallbackData] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [inlineToast, setInlineToast] = useState<string | null>(null);
+
+  const showToastMessage = useCallback((message: string) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.LONG);
+    } else {
+      setInlineToast(message);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProduct = async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiClient.get(`/products/${product.id}`);
+        if (!isMounted) {
+          return;
+        }
+        const payload = response.data;
+        const normalized: Product = {
+          id: payload.id ?? product.id,
+          title: payload.title ?? product.title,
+          description: payload.description ?? product.description,
+          price: payload.price ?? product.price,
+          category: payload.category ?? product.category,
+          image:
+            payload.thumbnail ??
+            payload.images?.[0] ??
+            product.image ??
+            'https://placehold.co/600x400?text=Produk',
+          rating: {
+            rate:
+              typeof payload.rating === 'object'
+                ? payload.rating.rate ?? product.rating.rate
+                : payload.rating ?? product.rating.rate,
+            count:
+              typeof payload.rating === 'object'
+                ? payload.rating.count ?? product.rating.count
+                : product.rating.count,
+          },
+        };
+        setRemoteProduct(normalized);
+        setIsFallbackData(false);
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+        const status =
+          (err as { response?: { status?: number } }).response?.status;
+        if (status === 404 || status === 500) {
+          console.error(
+            `Gagal memuat data produk dengan status ${status}`,
+            (err as Error).message,
+          );
+          setIsFallbackData(true);
+          const fallbackProduct: Product = {
+            ...product,
+            title: 'Produk Arsip',
+            description:
+              'Kami menampilkan data arsip karena produk terbaru tidak dapat dimuat.',
+            image: 'https://placehold.co/600x400?text=Arsip',
+            rating: {
+              rate: product.rating.rate || 4.2,
+              count: product.rating.count,
+            },
+          };
+          setRemoteProduct(fallbackProduct);
+          showToastMessage('Gagal memuat data terbaru. Menampilkan versi arsip.');
+        } else {
+          console.error('Kesalahan tidak terduga pada detail produk', err);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [product, showToastMessage]);
+
+  useEffect(() => {
+    if (!inlineToast) {
+      return;
+    }
+    const timer = setTimeout(() => setInlineToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [inlineToast]);
 
   const containerStyle = isLandscape
     ? styles.containerLandscape
@@ -59,22 +161,33 @@ export default function ProductDetailScreen() {
           <FontAwesome name="arrow-left" size={20} color="#007bff" />
           <Text style={styles.backButtonText}>Kembali</Text>
         </Pressable>
+        {isLoading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color="#1e90ff" />
+            <Text style={styles.loadingText}>Memuat detail produk...</Text>
+          </View>
+        ) : null}
         <View style={[styles.container, containerStyle]}>
           <Image
-            source={{ uri: product.image }}
+            source={{ uri: remoteProduct.image }}
             style={[styles.image, imageStyle]}
           />
 
           <View style={[styles.content, contentStyle]}>
-            <Text style={styles.name}>{product.title}</Text>
+            <Text style={styles.name}>{remoteProduct.title}</Text>
             <Text style={styles.price}>
-              {usdFormatter.format(product.price)}
+              {usdFormatter.format(remoteProduct.price)}
             </Text>
             <Text style={styles.rating}>
-              Rating: {product.rating.rate} / 5 ({product.rating.count}{' '}
-              ulasan)
+              Rating: {remoteProduct.rating.rate} / 5 (
+              {remoteProduct.rating.count} ulasan)
             </Text>
-            <Text style={styles.description}>{product.description}</Text>
+            {isFallbackData ? (
+              <Text style={styles.fallbackNotice}>
+                Menampilkan data arsip untuk menjaga pengalaman belanja.
+              </Text>
+            ) : null}
+            <Text style={styles.description}>{remoteProduct.description}</Text>
           </View>
           <View
             style={{
@@ -93,13 +206,18 @@ export default function ProductDetailScreen() {
             </Pressable>
             <Pressable
               style={styles.checkoutButton}
-              onPress={() => addToCart(product)}
+              onPress={() => addToCart(remoteProduct)}
             >
               <Text style={styles.checkoutButtonText}>Tambah Ke Keranjang</Text>
             </Pressable>
           </View>
         </View>
       </ScrollView>
+      {inlineToast ? (
+        <View style={styles.toastContainer}>
+          <Text style={styles.toastText}>{inlineToast}</Text>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -188,5 +306,31 @@ const styles = StyleSheet.create({
     color: '#007bff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  fallbackNotice: {
+    paddingVertical: 8,
+    color: '#d35400',
+    fontWeight: '600',
+  },
+  loadingState: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#4c566a',
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 32,
+    left: 16,
+    right: 16,
+    backgroundColor: '#1f2937',
+    padding: 14,
+    borderRadius: 10,
+  },
+  toastText: {
+    color: '#fff',
+    textAlign: 'center',
   },
 });

@@ -1,4 +1,4 @@
-import axios, { AxiosRequestHeaders } from 'axios';
+import axios, { AxiosError, AxiosRequestHeaders } from 'axios';
 
 const apiClient = axios.create({
   baseURL: 'https://dummyjson.com',
@@ -12,6 +12,12 @@ apiClient.interceptors.request.use(config => {
   config.headers['X-Client-Platform'] = 'React-Native';
   return config;
 });
+
+type ValidationErrors = Record<string, string>;
+
+export type ApiValidationError = AxiosError & {
+  validationErrors?: ValidationErrors;
+};
 
 apiClient.interceptors.response.use(
   response => {
@@ -29,7 +35,42 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  error => Promise.reject(error),
+  error => {
+    const axiosError = error as ApiValidationError;
+    const status = axiosError.response?.status;
+    const isValidationCandidate =
+      status === 400 &&
+      (axiosError.config?.url?.includes('/http/400') ||
+        axiosError.config?.url?.includes('/checkout'));
+
+    if (isValidationCandidate) {
+      const payload = axiosError.response?.data as {
+        errors?: ValidationErrors;
+        message?: string;
+      };
+      const fallbackErrors: ValidationErrors = {
+        address: payload?.message ?? 'Alamat wajib diisi',
+      };
+      axiosError.validationErrors = payload?.errors ?? fallbackErrors;
+      if (!payload?.errors) {
+        axiosError.response = {
+          ...(axiosError.response ?? {}),
+          status: 400,
+          statusText: 'Bad Request',
+          headers: axiosError.response?.headers ?? {},
+          config: axiosError.config!,
+          request: axiosError.response?.request,
+          data: {
+            ...(payload ?? {}),
+            errors: axiosError.validationErrors,
+          },
+        };
+      }
+      console.error('Checkout validation error:', axiosError.validationErrors);
+    }
+
+    return Promise.reject(axiosError);
+  },
 );
 
 export default apiClient;

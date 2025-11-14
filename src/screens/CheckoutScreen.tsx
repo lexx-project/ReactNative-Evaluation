@@ -5,16 +5,18 @@ import {
   Pressable,
   ScrollView,
   FlatList,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
-import NetInfo, { NetInfoStateType } from '@react-native-community/netinfo';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useCart } from '../hooks/useCart';
 import { Product } from '../data/product';
-import apiClient from '../api/client';
+import apiClient, { ApiValidationError } from '../api/client';
+import { useConnectivity } from '../context/ConnectivityContext';
 
 const usdFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -36,10 +38,13 @@ const OrderItem = ({ item }: { item: Product }) => (
 export default function CheckoutScreen() {
   const navigation = useNavigation();
   const { items } = useCart();
-  const [connectionType, setConnectionType] =
-    useState<NetInfoStateType>('unknown');
+  const { connectionType, isOffline } = useConnectivity();
+  const pollingPaused = connectionType === 'cellular';
   const [syncedSubtotal, setSyncedSubtotal] = useState(0);
-  const [pollingPaused, setPollingPaused] = useState(false);
+  const [address, setAddress] = useState('');
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [submissionInfo, setSubmissionInfo] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price, 0),
@@ -49,13 +54,6 @@ export default function CheckoutScreen() {
   useEffect(() => {
     setSyncedSubtotal(subtotal);
   }, [subtotal]);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setConnectionType(state.type);
-    });
-    return unsubscribe;
-  }, []);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -85,9 +83,6 @@ export default function CheckoutScreen() {
     if (connectionType !== 'cellular') {
       fetchCartTotal();
       intervalId = setInterval(fetchCartTotal, 15000);
-      setPollingPaused(false);
-    } else {
-      setPollingPaused(true);
     }
 
     return () => {
@@ -102,7 +97,34 @@ export default function CheckoutScreen() {
   const effectiveSubtotal = syncedSubtotal || subtotal;
   const totalPembayaran = effectiveSubtotal + biayaLayanan;
 
-  const handleBayar = () => {};
+  const handleBayar = async () => {
+    setIsSubmitting(true);
+    setAddressError(null);
+    setSubmissionInfo(null);
+
+    const shouldSimulateValidationFailure = address.trim().length === 0;
+    const endpoint = shouldSimulateValidationFailure ? '/http/400' : '/carts/add';
+
+    try {
+      await apiClient.post(endpoint, {
+        address,
+        items: items.map(item => item.id),
+        total: totalPembayaran,
+      });
+      setSubmissionInfo('Pesanan berhasil dikirim ke server.');
+    } catch (err) {
+      const apiError = err as ApiValidationError;
+      if (apiError.validationErrors?.address) {
+        setAddressError(apiError.validationErrors.address);
+      } else {
+        setSubmissionInfo(
+          apiError.message || 'Terjadi kesalahan saat memproses pesanan.',
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -168,13 +190,45 @@ export default function CheckoutScreen() {
             <FontAwesome name="chevron-right" size={14} color="#888" />
           </Pressable>
         </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Alamat Pengiriman</Text>
+          <TextInput
+            style={[
+              styles.input,
+              addressError ? styles.inputError : undefined,
+            ]}
+            placeholder="Nama jalan, nomor rumah, kota"
+            onChangeText={setAddress}
+            value={address}
+            multiline
+            textAlignVertical="top"
+          />
+          {addressError ? (
+            <Text style={styles.errorText}>{addressError}</Text>
+          ) : null}
+          {submissionInfo ? (
+            <Text style={styles.infoText}>{submissionInfo}</Text>
+          ) : null}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.payButton} onPress={handleBayar}>
-          <Text style={styles.payButtonText}>
-            Bayar Sekarang ({usdFormatter.format(totalPembayaran)})
-          </Text>
+        <Pressable
+          style={[
+            styles.payButton,
+            (isSubmitting || isOffline) && styles.payButtonDisabled,
+          ]}
+          onPress={handleBayar}
+          disabled={isSubmitting || isOffline}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.payButtonText}>
+              Bayar Sekarang ({usdFormatter.format(totalPembayaran)})
+            </Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -314,6 +368,25 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 12,
   },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d0d7e3',
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 80,
+    backgroundColor: '#f8fafc',
+  },
+  inputError: {
+    borderColor: '#d9534f',
+  },
+  errorText: {
+    color: '#d9534f',
+    marginTop: 8,
+  },
+  infoText: {
+    marginTop: 8,
+    color: '#4b5563',
+  },
   footer: {
     padding: 16,
     backgroundColor: '#fff',
@@ -325,6 +398,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  payButtonDisabled: {
+    opacity: 0.7,
   },
   payButtonText: {
     color: '#fff',

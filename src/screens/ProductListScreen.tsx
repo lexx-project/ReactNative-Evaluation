@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import NetInfo, { NetInfoStateType } from '@react-native-community/netinfo';
+import { useConnectivity } from '../context/ConnectivityContext';
 
 type RemoteProduct = {
   id: number;
@@ -22,83 +22,82 @@ export default function ProductListScreen() {
   const [products, setProducts] = useState<RemoteProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isOffline, setIsOffline] = useState(false);
-  const [connectionType, setConnectionType] =
-    useState<NetInfoStateType>('unknown');
   const [refreshIndex, setRefreshIndex] = useState(0);
-
-  const handleConnectionChange = useCallback(() => {
-    NetInfo.fetch().then(state => {
-      setConnectionType(state.type);
-    });
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setConnectionType(state.type);
-      if (state.isInternetReachable === false) {
-        setIsOffline(true);
-      }
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const { isOffline, connectionType } = useConnectivity();
 
   useEffect(() => {
     let controller: AbortController | null = null;
-    let timeoutId: ReturnType<typeof setTimeout>;
     let isMounted = true;
+    const MAX_RETRIES = 3;
 
     const loadProducts = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      const netState = await NetInfo.fetch();
-      setConnectionType(netState.type);
-      if (netState.isInternetReachable === false) {
-        setIsOffline(true);
+      if (isOffline) {
         setIsLoading(false);
+        setError(null);
+        setRetryAttempt(0);
         return;
       }
-      setIsOffline(false);
 
-      controller = new AbortController();
-      timeoutId = setTimeout(() => controller?.abort(), 7000);
+      setIsLoading(true);
+      setError(null);
+      setRetryAttempt(0);
 
-      try {
-        const response = await fetch('https://dummyjson.com/products', {
-          signal: controller.signal,
+      const wait = (ms: number) =>
+        new Promise(resolve => {
+          setTimeout(resolve, ms);
         });
 
-        if (!response.ok) {
-          throw new Error('Gagal memuat produk');
-        }
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        controller = new AbortController();
+        const timeoutId = setTimeout(() => controller?.abort(), 7000);
+        try {
+          const response = await fetch('https://dummyjson.com/products', {
+            signal: controller.signal,
+          });
 
-        const payload = await response.json();
+          if (!response.ok) {
+            console.error(`HTTP ${response.status} saat memuat produk`);
+            throw new Error(`HTTP_${response.status}`);
+          }
 
-        if (!isMounted) {
-          return;
-        }
+          const payload = await response.json();
 
-        setProducts(payload.products ?? []);
-      } catch (err: unknown) {
-        if (!isMounted) {
-          return;
-        }
-        if ((err as Error).name === 'AbortError') {
-          setError(
-            'Permintaan dibatalkan karena timeout atau layar sudah ditutup.',
-          );
-        } else {
-          setError('Terjadi kesalahan saat memuat data produk.');
-        }
-      } finally {
-        if (isMounted) {
+          if (!isMounted) {
+            return;
+          }
+
+          setProducts(payload.products ?? []);
+          setRetryAttempt(0);
           setIsLoading(false);
+          return;
+        } catch (err: unknown) {
+          if (!isMounted) {
+            return;
+          }
+          const message =
+            err instanceof Error ? err.message : 'Kesalahan tidak diketahui';
+          if ((err as Error).name === 'AbortError') {
+            console.warn('Permintaan produk dihentikan karena timeout.');
+          } else {
+            console.error(`Percobaan ${attempt} gagal:`, message);
+          }
+          setRetryAttempt(attempt);
+          if (attempt === MAX_RETRIES) {
+            setError(
+              'Terjadi kesalahan saat memuat data produk setelah beberapa percobaan.',
+            );
+          } else {
+            const backoff = Math.pow(2, attempt - 1) * 1000;
+            await wait(backoff);
+          }
+        } finally {
+          clearTimeout(timeoutId);
         }
-        clearTimeout(timeoutId);
+      }
+
+      if (isMounted) {
+        setIsLoading(false);
       }
     };
 
@@ -107,9 +106,8 @@ export default function ProductListScreen() {
     return () => {
       isMounted = false;
       controller?.abort();
-      clearTimeout(timeoutId);
     };
-  }, [refreshIndex]);
+  }, [refreshIndex, isOffline]);
 
   const handleRefresh = useCallback(() => {
     setRefreshIndex(prev => prev + 1);
@@ -147,6 +145,11 @@ export default function ProductListScreen() {
         <View style={styles.placeholder}>
           <ActivityIndicator size="large" color="#1e90ff" />
           <Text style={styles.placeholderTitle}>Memuat produk...</Text>
+          {retryAttempt > 0 && (
+            <Text style={styles.retryHint}>
+              Percobaan otomatis ke-{retryAttempt} sedang berjalan.
+            </Text>
+          )}
         </View>
       );
     }
@@ -155,6 +158,11 @@ export default function ProductListScreen() {
       return (
         <View style={styles.placeholder}>
           <Text style={styles.placeholderTitle}>{error}</Text>
+          {retryAttempt >= 3 && (
+            <Text style={styles.retryHint}>
+              Percobaan otomatis dihentikan. Silakan tekan tombol di bawah ini.
+            </Text>
+          )}
           <Pressable style={styles.retryButton} onPress={handleRefresh}>
             <Text style={styles.retryText}>Muat Ulang</Text>
           </Pressable>
@@ -182,8 +190,8 @@ export default function ProductListScreen() {
         <Text style={styles.connectionText}>
           Jenis koneksi: {connectionType}
         </Text>
-        <Pressable onPress={handleConnectionChange}>
-          <Text style={styles.connectionRefresh}>Perbarui Status</Text>
+        <Pressable onPress={handleRefresh}>
+          <Text style={styles.connectionRefresh}>Muat ulang</Text>
         </Pressable>
       </View>
     </View>
@@ -232,6 +240,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     gap: 12,
+  },
+  retryHint: {
+    color: '#4c566a',
+    fontSize: 14,
+    textAlign: 'center',
   },
   placeholderTitle: {
     fontSize: 16,

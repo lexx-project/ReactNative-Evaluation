@@ -11,6 +11,7 @@ import {
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import apiClient from '../api/client';
 import { RootAuthStackParamList } from '../navigation/types';
+import { useAuth } from '../context/AuthContext';
 
 type LoginNavigation = NavigationProp<RootAuthStackParamList>;
 
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigation = useNavigation<LoginNavigation>();
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     setIsSubmitting(true);
@@ -30,12 +32,9 @@ export default function LoginScreen() {
         password,
       });
 
-      if (response.data?.token) {
-        console.log('Token diterima:', response.data.token);
-        setStatusMessage('Login berhasil! Mengalihkan ke Home...');
-      } else {
-        setStatusMessage('Login berhasil tanpa token. Mengalihkan ke Home...');
-      }
+      const token = response.data?.token ?? 'dummy-token';
+      await login(token);
+      setStatusMessage('Login berhasil! Mengalihkan ke Home...');
 
       navigation.navigate('MainApp');
     } catch (error: any) {

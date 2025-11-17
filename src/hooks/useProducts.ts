@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchProducts, Product } from '../data/product';
+import { getProductsCache, setProductsCache } from '../utils/storage';
+import { useConnectivity } from '../context/ConnectivityContext';
 
 type UseProductsResult = {
   products: Product[];
@@ -13,6 +15,7 @@ export function useProducts(): UseProductsResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
+  const { isOffline } = useConnectivity();
 
   useEffect(() => {
     return () => {
@@ -26,11 +29,29 @@ export function useProducts(): UseProductsResult {
     }
 
     setIsLoading(true);
+
     try {
+      const cached = await getProductsCache<Product[]>();
+      if (cached && isMountedRef.current) {
+        setProducts(cached);
+        setError(null);
+        if (isOffline) {
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      if (isOffline) {
+        setError('Offline. Data dari cache.');
+        setIsLoading(false);
+        return;
+      }
+
       const data = await fetchProducts();
       if (isMountedRef.current) {
         setProducts(data);
         setError(null);
+        await setProductsCache(data);
       }
     } catch (err) {
       console.error('Failed to fetch products', err);
@@ -42,7 +63,7 @@ export function useProducts(): UseProductsResult {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [isOffline]);
 
   useEffect(() => {
     loadProducts();

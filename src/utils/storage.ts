@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Keychain from 'react-native-keychain';
 
 export const STORAGE_KEYS = {
   token: '@miniapp:auth-token',
@@ -7,6 +8,9 @@ export const STORAGE_KEYS = {
   productsCache: '@miniapp:products-cache',
   cart: '@miniapp:cart',
 };
+
+const TOKEN_SERVICE = 'com.ecom:userToken';
+const TOKEN_USERNAME = 'user_token_holder';
 
 type TTLPayload<T> = {
   value: T;
@@ -30,7 +34,9 @@ const safeParse = <T>(raw: string | null): T | null => {
 
 export async function saveToken(token: string) {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.token, token);
+    await Keychain.setGenericPassword(TOKEN_USERNAME, token, {
+      service: TOKEN_SERVICE,
+    });
   } catch (err) {
     console.error('Gagal menyimpan token:', err);
   }
@@ -38,8 +44,16 @@ export async function saveToken(token: string) {
 
 export async function loadToken(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(STORAGE_KEYS.token);
+    const credentials = await Keychain.getGenericPassword({
+      service: TOKEN_SERVICE,
+    });
+    return credentials?.password ?? null;
   } catch (err) {
+    const message = (err as Error)?.message ?? '';
+    const isAccessDenied = message.toLowerCase().includes('access denied');
+    if (isAccessDenied) {
+      throw err;
+    }
     console.error('Gagal mengambil token:', err);
     return null;
   }
@@ -47,17 +61,24 @@ export async function loadToken(): Promise<string | null> {
 
 export async function multiLoadBasics() {
   try {
-    const entries = await AsyncStorage.multiGet([
-      STORAGE_KEYS.token,
-      STORAGE_KEYS.theme,
-      STORAGE_KEYS.notification,
+    const [token, entries] = await Promise.all([
+      loadToken(),
+      AsyncStorage.multiGet([STORAGE_KEYS.theme, STORAGE_KEYS.notification]),
     ]);
 
-    return entries.reduce<Record<string, string | null>>((acc, [key, value]) => {
-      acc[key] = value;
-      return acc;
-    }, {});
+    const baseEntries = entries.reduce<Record<string, string | null>>(
+      (acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      },
+      {},
+    );
+    return { ...baseEntries, [STORAGE_KEYS.token]: token ?? null };
   } catch (err) {
+    const message = (err as Error)?.message ?? '';
+    if (message.toLowerCase().includes('access denied')) {
+      throw err;
+    }
     console.error('Gagal melakukan multiGet:', err);
     return {};
   }
@@ -122,14 +143,25 @@ export async function loadCart<T>(): Promise<T | []> {
 
 export async function clearSensitiveData() {
   try {
-    await AsyncStorage.multiRemove([
-      STORAGE_KEYS.token,
-      STORAGE_KEYS.theme,
-      STORAGE_KEYS.notification,
-      STORAGE_KEYS.cart,
-      STORAGE_KEYS.productsCache,
+    await Promise.all([
+      AsyncStorage.multiRemove([
+        STORAGE_KEYS.token,
+        STORAGE_KEYS.theme,
+        STORAGE_KEYS.notification,
+        STORAGE_KEYS.cart,
+        STORAGE_KEYS.productsCache,
+      ]),
+      Keychain.resetGenericPassword({ service: TOKEN_SERVICE }),
     ]);
   } catch (err) {
     console.error('Gagal membersihkan data sensitif saat logout:', err);
+  }
+}
+
+export async function resetSecureToken() {
+  try {
+    await Keychain.resetGenericPassword({ service: TOKEN_SERVICE });
+  } catch (err) {
+    console.error('Gagal reset token secure:', err);
   }
 }

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import {
   clearSensitiveData,
-  loadToken,
   multiLoadBasics,
+  resetSecureToken,
   saveToken,
+  STORAGE_KEYS,
 } from '../utils/storage';
 
 type AuthContextType = {
@@ -21,10 +23,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrate = async () => {
-      const bootData = await multiLoadBasics();
-      const token = bootData['@miniapp:auth-token'] ?? (await loadToken());
-      if (token) {
-        setStatus('authenticated');
+      try {
+        const bootData = await multiLoadBasics();
+        const token = bootData?.[STORAGE_KEYS.token];
+        if (token) {
+          setStatus('authenticated');
+        }
+      } catch (err) {
+        const message = (err as Error)?.message?.toLowerCase?.() ?? '';
+        const isAccessDenied = message.includes('access denied');
+        if (isAccessDenied) {
+          await resetSecureToken();
+          Alert.alert(
+            'Login diperlukan',
+            'Keamanan perangkat diubah, mohon login ulang.',
+          );
+        } else {
+          console.error('Gagal hydrate auth:', err);
+        }
+        setStatus('guest');
       }
       setHydrated(true);
     };

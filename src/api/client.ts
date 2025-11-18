@@ -1,16 +1,82 @@
 import axios, { AxiosError, AxiosRequestHeaders } from 'axios';
+import * as Keychain from 'react-native-keychain';
+
+const API_KEY_USERNAME = 'api_client';
+const API_KEY_SECRET = 'API_KEY_SECRET_XYZ';
+const API_KEY_SERVICE = 'com.ecom:apiKey';
 
 const apiClient = axios.create({
   baseURL: 'https://dummyjson.com',
   timeout: 10000,
 });
 
-apiClient.interceptors.request.use(config => {
+export async function storeApiKeySecret() {
+  try {
+    await Keychain.setGenericPassword(API_KEY_USERNAME, API_KEY_SECRET, {
+      service: API_KEY_SERVICE,
+    });
+  } catch (err) {
+    console.error('Gagal menyimpan API Key secure:', err);
+  }
+}
+
+const ensureApiKeySeeded = storeApiKeySecret();
+
+const getApiKeyFromSecureStore = async () => {
+  const credentials = await Keychain.getGenericPassword({
+    service: API_KEY_SERVICE,
+  });
+  return credentials?.password ?? null;
+};
+
+apiClient.interceptors.request.use(async config => {
+  await ensureApiKeySeeded.catch(() => null);
+
   if (!config.headers) {
     config.headers = {} as AxiosRequestHeaders;
   }
   config.headers['X-Client-Platform'] = 'React-Native';
-  return config;
+
+  try {
+    const apiKey = await getApiKeyFromSecureStore();
+    if (!apiKey) {
+      const unauthorizedError = new AxiosError(
+        'API Key tidak ditemukan di Keychain',
+        '401',
+        config,
+        null,
+        {
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: config.headers,
+          config,
+          data: {
+            message: 'API Key hilang, mohon periksa konfigurasi keamanan.',
+          },
+        },
+      );
+      return Promise.reject(unauthorizedError);
+    }
+
+    config.headers['X-API-Key'] = apiKey;
+    return config;
+  } catch (err) {
+    const message = (err as Error)?.message ?? 'Gagal mengambil API Key';
+    const unauthorizedError = new AxiosError(
+      message,
+      '401',
+      config,
+      null,
+      {
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: config.headers,
+        config,
+        data: { message },
+      },
+    );
+    return Promise.reject(unauthorizedError);
+  }
 });
 
 type ValidationErrors = Record<string, string>;

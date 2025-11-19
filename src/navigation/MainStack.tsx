@@ -12,11 +12,13 @@ import AddProduct from '../components/AddProduct';
 
 import { useCart } from '../hooks/useCart';
 import { Product } from '../data/product';
+import ProfileScreen from '../screens/ProfileScreen';
 
 export type MainStackParamList = {
   MainBottomTabs: undefined;
-  ProductDetail: { product: Product };
+  ProductDetail: { product?: Product; productId?: number | string };
   Checkout: undefined;
+  Profile: { userId: string };
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -57,9 +59,14 @@ export default function MainStack() {
             name="ProductDetail"
             component={ProductDetailScreen}
             options={({ route }) => ({
-              title: route.params.product.title,
+              title: route.params.product?.title ?? 'Detail Produk',
               headerShown: false,
             })}
+          />
+          <Stack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{ headerShown: false }}
           />
         </Stack.Group>
 

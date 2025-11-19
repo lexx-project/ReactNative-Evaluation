@@ -16,7 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../context/CartContext';
 import Header from '../components/Header';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MainStackParamList } from '../navigation/MainStack';
 import apiClient from '../api/client';
 import { Product } from '../data/product';
@@ -31,12 +31,42 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 export default function ProductDetailScreen() {
   const route = useRoute<ProductDetailRouteProp>();
-  const { product } = route.params;
+  const { product, productId } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height; // Untuk orientasi layar
   const { addToCart, count } = useCart();
-  const [remoteProduct, setRemoteProduct] = useState<Product>(product);
+  const numericProductId = useMemo(() => {
+    if (product?.id) {
+      return product.id;
+    }
+    if (productId === undefined || productId === null) {
+      return NaN;
+    }
+    const parsed = typeof productId === 'string' ? Number(productId) : productId;
+    return Number.isNaN(parsed) ? NaN : parsed;
+  }, [product?.id, productId]);
+
+  const fallbackProduct = useMemo<Product>(
+    () => ({
+      id: Number.isNaN(numericProductId) ? 0 : numericProductId,
+      title: product?.title ?? 'Produk',
+      description:
+        product?.description ?? 'Memuat detail produk, mohon tunggu...',
+      price: product?.price ?? 0,
+      category: product?.category ?? 'unknown',
+      image:
+        product?.image ??
+        'https://placehold.co/600x400?text=Memuat+produk',
+      rating: {
+        rate: product?.rating?.rate ?? 0,
+        count: product?.rating?.count ?? 0,
+      },
+    }),
+    [numericProductId, product],
+  );
+
+  const [remoteProduct, setRemoteProduct] = useState<Product>(fallbackProduct);
   const [isFallbackData, setIsFallbackData] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [inlineToast, setInlineToast] = useState<string | null>(null);
@@ -52,33 +82,39 @@ export default function ProductDetailScreen() {
   useEffect(() => {
     let isMounted = true;
     const fetchProduct = async () => {
+      if (Number.isNaN(numericProductId)) {
+        showToastMessage('Link produk tidak valid, kembali ke beranda.');
+        navigation.navigate('MainBottomTabs');
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
-        const response = await apiClient.get(`/products/${product.id}`);
+        const response = await apiClient.get(`/products/${numericProductId}`);
         if (!isMounted) {
           return;
         }
         const payload = response.data;
         const normalized: Product = {
-          id: payload.id ?? product.id,
-          title: payload.title ?? product.title,
-          description: payload.description ?? product.description,
-          price: payload.price ?? product.price,
-          category: payload.category ?? product.category,
+          id: payload.id ?? numericProductId,
+          title: payload.title ?? fallbackProduct.title,
+          description: payload.description ?? fallbackProduct.description,
+          price: payload.price ?? fallbackProduct.price,
+          category: payload.category ?? fallbackProduct.category,
           image:
             payload.thumbnail ??
             payload.images?.[0] ??
-            product.image ??
+            fallbackProduct.image ??
             'https://placehold.co/600x400?text=Produk',
           rating: {
             rate:
               typeof payload.rating === 'object'
-                ? payload.rating.rate ?? product.rating.rate
-                : payload.rating ?? product.rating.rate,
+                ? payload.rating.rate ?? fallbackProduct.rating.rate
+                : payload.rating ?? fallbackProduct.rating.rate,
             count:
               typeof payload.rating === 'object'
-                ? payload.rating.count ?? product.rating.count
-                : product.rating.count,
+                ? payload.rating.count ?? fallbackProduct.rating.count
+                : fallbackProduct.rating.count,
           },
         };
         setRemoteProduct(normalized);
@@ -95,18 +131,18 @@ export default function ProductDetailScreen() {
             (err as Error).message,
           );
           setIsFallbackData(true);
-          const fallbackProduct: Product = {
-            ...product,
+          const archivedProduct: Product = {
+            ...fallbackProduct,
             title: 'Produk Arsip',
             description:
               'Kami menampilkan data arsip karena produk terbaru tidak dapat dimuat.',
             image: 'https://placehold.co/600x400?text=Arsip',
             rating: {
-              rate: product.rating.rate || 4.2,
-              count: product.rating.count,
+              rate: fallbackProduct.rating.rate || 4.2,
+              count: fallbackProduct.rating.count,
             },
           };
-          setRemoteProduct(fallbackProduct);
+          setRemoteProduct(archivedProduct);
           showToastMessage('Gagal memuat data terbaru. Menampilkan versi arsip.');
         } else {
           console.error('Kesalahan tidak terduga pada detail produk', err);
@@ -123,7 +159,7 @@ export default function ProductDetailScreen() {
     return () => {
       isMounted = false;
     };
-  }, [product, showToastMessage]);
+  }, [fallbackProduct, navigation, numericProductId, showToastMessage]);
 
   useEffect(() => {
     if (!inlineToast) {

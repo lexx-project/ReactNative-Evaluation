@@ -1,6 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  LinkingOptions,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -15,6 +18,35 @@ import ConnectivityBanner from './src/components/ConnectivityBanner';
 import { useAuth } from './src/context/AuthContext';
 
 const Stack = createNativeStackNavigator<RootAuthStackParamList>();
+
+const linking: LinkingOptions<RootAuthStackParamList> = {
+  prefixes: ['ecommerceapp://', 'https://ecommerceapp.com'],
+  config: {
+    screens: {
+      Login: 'login',
+      MainApp: {
+        screens: {
+          Beranda: {
+            screens: {
+              MainBottomTabs: {
+                screens: {
+                  Home: 'home',
+                  Products: 'produk-list',
+                  About: 'tentang',
+                },
+              },
+              ProductDetail: 'produk/:productId',
+              Checkout: 'keranjang',
+              Profile: 'profil/:userId',
+            },
+          },
+          Pengaturan: 'pengaturan',
+          Riwayat: 'riwayat',
+        },
+      },
+    },
+  },
+};
 
 const AppContent = () => {
   const { status, hydrated } = useAuth();
@@ -58,7 +90,7 @@ const App = () => {
           <>
             <ConnectivityBanner />
             <CartProvider key={`cart-${resetKey}`}>
-              <NavigationContainer key={`nav-${resetKey}`}>
+              <NavigationContainer key={`nav-${resetKey}`} linking={linking}>
                 <AuthProvider>
                   <AppContent />
                 </AuthProvider>

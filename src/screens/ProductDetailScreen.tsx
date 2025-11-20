@@ -18,8 +18,8 @@ import Header from '../components/Header';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MainStackParamList } from '../navigation/MainStack';
-import apiClient from '../api/client';
 import { Product } from '../data/product';
+import { loadProductDetailWithCache } from '../utils/productDetail';
 
 const usdFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -90,35 +90,16 @@ export default function ProductDetailScreen() {
       }
       setIsLoading(true);
       try {
-        const response = await apiClient.get(`/products/${numericProductId}`);
+        const { product: detail, fromCache } =
+          await loadProductDetailWithCache(numericProductId, fallbackProduct);
         if (!isMounted) {
           return;
         }
-        const payload = response.data;
-        const normalized: Product = {
-          id: payload.id ?? numericProductId,
-          title: payload.title ?? fallbackProduct.title,
-          description: payload.description ?? fallbackProduct.description,
-          price: payload.price ?? fallbackProduct.price,
-          category: payload.category ?? fallbackProduct.category,
-          image:
-            payload.thumbnail ??
-            payload.images?.[0] ??
-            fallbackProduct.image ??
-            'https://placehold.co/600x400?text=Produk',
-          rating: {
-            rate:
-              typeof payload.rating === 'object'
-                ? payload.rating.rate ?? fallbackProduct.rating.rate
-                : payload.rating ?? fallbackProduct.rating.rate,
-            count:
-              typeof payload.rating === 'object'
-                ? payload.rating.count ?? fallbackProduct.rating.count
-                : fallbackProduct.rating.count,
-          },
-        };
-        setRemoteProduct(normalized);
+        setRemoteProduct(detail);
         setIsFallbackData(false);
+        if (fromCache) {
+          setIsLoading(false);
+        }
       } catch (err) {
         if (!isMounted) {
           return;

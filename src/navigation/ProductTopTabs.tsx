@@ -38,7 +38,11 @@ function ProductListCategoryWrapper({
 }
 
 export default function ProductTopTabs() {
-  const { products, isLoading, error, refetch } = useProducts();
+  const { products, isLoading, error, refetch, fatalError } = useProducts();
+
+  if (fatalError && products.length === 0) {
+    throw fatalError;
+  }
 
   const categories = useMemo(() => {
     const categorySet = new Set<string>(['Semua']);

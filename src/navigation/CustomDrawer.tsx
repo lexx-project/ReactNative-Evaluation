@@ -21,13 +21,13 @@ const EMPTY_USER = {
 
 type MenuItem = {
   label: string;
-  targetTab: 'Beranda' | 'Pengaturan' | 'Riwayat';
+  targetTab: 'Beranda' | 'Products' | 'About';
 };
 
 const MENU_ITEMS: MenuItem[] = [
   { label: 'Beranda', targetTab: 'Beranda' },
-  { label: 'Pengaturan', targetTab: 'Pengaturan' },
-  { label: 'Riwayat', targetTab: 'Riwayat' },
+  { label: 'Products', targetTab: 'Products' },
+  { label: 'About', targetTab: 'About' },
 ];
 
 export default function CustomDrawer(props: DrawerContentComponentProps) {
@@ -41,9 +41,9 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
   const displayName = user.name || 'Guest';
   const displayEmail = user.email || 'user@example.com';
 
-  const handleAuthToggle = () => {
+  const handleAuthToggle = async () => {
     props.navigation.closeDrawer();
-    logout(() => {
+    await logout(() => {
       props.navigation.dispatch(
         CommonActions.reset({
           index: 0,

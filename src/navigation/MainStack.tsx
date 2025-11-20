@@ -7,6 +7,7 @@ import { DrawerNavigationProp } from '@react-navigation/drawer';
 import BottomTabNavigator from './BottomTabNavigator';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import CartScreen from '../screens/CartScreen';
 import Header from '../components/Header';
 import AddProduct from '../components/AddProduct';
 
@@ -19,6 +20,7 @@ export type MainStackParamList = {
   ProductDetail: { product?: Product; productId?: number | string };
   Checkout: undefined;
   Profile: { userId: string };
+  Cart: undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -73,6 +75,7 @@ export default function MainStack() {
         <Stack.Group
           screenOptions={{ presentation: 'modal', headerShown: false }}
         >
+          <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="Checkout" component={CheckoutScreen} />
         </Stack.Group>
       </Stack.Navigator>

@@ -12,16 +12,26 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import apiClient from '../api/client';
 import { RootAuthStackParamList } from '../navigation/types';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../hooks/useCart';
+import { loadProductDetailWithCache } from '../utils/productDetail';
 
 type LoginNavigation = NavigationProp<RootAuthStackParamList>;
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('emilys');
-  const [password, setPassword] = useState('emilyspass');
+  const [username, setUsername] = useState('bahlil');
+  const [password, setPassword] = useState('bahlilGegeSekali');
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigation = useNavigation<LoginNavigation>();
-  const { login } = useAuth();
+  const { login, consumePendingLink } = useAuth();
+  const { addToCart } = useCart();
+
+  const fallbackLocalLogin = async (reason: string) => {
+    const localToken = `custom-${username || 'user'}-${Date.now()}`;
+    await login(localToken);
+    setStatusMessage(reason);
+    navigation.navigate('MainApp');
+  };
 
   const handleLogin = async () => {
     setIsSubmitting(true);
@@ -34,15 +44,63 @@ export default function LoginScreen() {
 
       const token = response.data?.token ?? 'dummy-token';
       await login(token);
+      const queued = consumePendingLink();
+      if (queued) {
+        if (queued.type === 'product') {
+          navigation.navigate('MainApp', {
+            screen: 'Beranda',
+            params: {
+              screen: 'ProductDetail',
+              params: { productId: queued.productId },
+            },
+          });
+          return;
+        }
+        if (queued.type === 'cart') {
+          navigation.navigate('MainApp', {
+            screen: 'Beranda',
+            params: { screen: 'Cart' },
+          });
+          return;
+        }
+        if (queued.type === 'checkout') {
+          navigation.navigate('MainApp', {
+            screen: 'Beranda',
+            params: { screen: 'Checkout' },
+          });
+          return;
+        }
+        if (queued.type === 'add-to-cart') {
+          const { product } = await loadProductDetailWithCache(
+            queued.productId,
+          );
+          addToCart(product);
+          navigation.navigate('MainApp');
+          return;
+        }
+      }
       setStatusMessage('Login berhasil! Mengalihkan ke Home...');
 
       navigation.navigate('MainApp');
     } catch (error: any) {
       console.warn('Login gagal', error);
       const serverMessage = error?.response?.data?.message;
+      const isUnauthorized = error?.response?.status === 401;
+      const message =
+        serverMessage || (isUnauthorized ? 'Invalid credentials' : null);
+
+      if (username && password) {
+        await fallbackLocalLogin(
+          message
+            ? `Login offline: ${message}. Token lokal dibuat.`
+            : 'Login offline: menggunakan token lokal.',
+        );
+        return;
+      }
+
       setStatusMessage(
-        serverMessage
-          ? `Login gagal: ${serverMessage}`
+        message
+          ? `Login gagal: ${message}`
           : 'Login gagal. Silakan cek kembali kredensial Anda.',
       );
     } finally {

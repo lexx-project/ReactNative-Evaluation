@@ -8,12 +8,14 @@ type UseProductsResult = {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  fatalError: Error | null;
 };
 
 export function useProducts(): UseProductsResult {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fatalError, setFatalError] = useState<Error | null>(null);
   const isMountedRef = useRef(true);
   const { isOffline } = useConnectivity();
 
@@ -35,6 +37,7 @@ export function useProducts(): UseProductsResult {
       if (cached && isMountedRef.current) {
         setProducts(cached);
         setError(null);
+        setFatalError(null);
         if (isOffline) {
           setIsLoading(false);
           return;
@@ -51,12 +54,14 @@ export function useProducts(): UseProductsResult {
       if (isMountedRef.current) {
         setProducts(data);
         setError(null);
+        setFatalError(null);
         await setProductsCache(data);
       }
     } catch (err) {
       console.error('Failed to fetch products', err);
       if (isMountedRef.current) {
         setError('Gagal memuat produk. Tarik untuk refresh atau coba lagi.');
+        setFatalError(err as Error);
       }
     } finally {
       if (isMountedRef.current) {
@@ -74,5 +79,6 @@ export function useProducts(): UseProductsResult {
     isLoading,
     error,
     refetch: loadProducts,
+    fatalError,
   };
 }

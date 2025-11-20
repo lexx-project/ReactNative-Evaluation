@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { retryWithBackoff } from '../utils/retry';
 
 export type ProductRating = {
   rate: number;
@@ -25,7 +26,14 @@ const api = axios.create({
 });
 
 export async function fetchProducts(): Promise<Product[]> {
-  const response = await api.get<ApiProduct[]>('/products');
+  const response = await retryWithBackoff(() => api.get<ApiProduct[]>('/products'), {
+    retries: 3,
+    baseDelayMs: 800,
+    onRetry: (attempt, err) => {
+      console.warn(`Retry produk ke-${attempt} karena`, (err as Error)?.message);
+    },
+  });
+
   return response.data.map(product => ({
     ...product,
     rating: {

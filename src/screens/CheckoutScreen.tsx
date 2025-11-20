@@ -17,6 +17,7 @@ import { useCart } from '../hooks/useCart';
 import { Product } from '../data/product';
 import apiClient, { ApiValidationError } from '../api/client';
 import { useConnectivity } from '../context/ConnectivityContext';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 const usdFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -35,7 +36,7 @@ const OrderItem = ({ item }: { item: Product }) => (
   </View>
 );
 
-export default function CheckoutScreen() {
+function CheckoutContent() {
   const navigation = useNavigation();
   const { items } = useCart();
   const { connectionType, isOffline } = useConnectivity();
@@ -232,6 +233,14 @@ export default function CheckoutScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+export default function CheckoutScreen() {
+  return (
+    <ProtectedRoute targetLink={{ type: 'checkout' }}>
+      <CheckoutContent />
+    </ProtectedRoute>
   );
 }
 

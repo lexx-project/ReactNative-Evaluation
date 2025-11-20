@@ -11,6 +11,7 @@ type CartContextType = {
   openModal: () => void;
   closeModal: () => void;
   storageWarning: string | null;
+  hydrated: boolean;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -19,11 +20,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Product[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const hydrate = async () => {
       const cachedCart = await loadCart<Product[]>();
-      setItems(cachedCart);
+      setItems(cachedCart.items);
+      if (cachedCart.corrupted) {
+        setStorageWarning('Data keranjang corrupt dibersihkan otomatis.');
+      }
+      setHydrated(true);
     };
     hydrate();
   }, []);
@@ -70,6 +76,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     openModal,
     closeModal,
     storageWarning,
+    hydrated,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

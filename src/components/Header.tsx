@@ -50,9 +50,7 @@ export default function Header({
   const handleCartPress = () => {
     if (onCartPress) {
       navigation.navigate('Checkout');
-      return;
     }
-    navigation.navigate('Checkout');
   };
 
   return (

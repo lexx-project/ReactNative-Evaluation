@@ -2,6 +2,8 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Product } from '../data/product';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useWishlist } from '../context/WishlistContext';
 
 type ProductCardSize = {
   width: number;
@@ -26,6 +28,8 @@ export default function ProductCard({
   size,
 }: ProductCardProps) {
   const navigation = useNavigation<AnyStackNavigationProp>();
+  const { isInWishlist, toggle } = useWishlist();
+  const wished = isInWishlist(product.id);
 
   const handleCartPress = () => {
     navigation.navigate('ProductDetail', { product: product });
@@ -57,6 +61,21 @@ export default function ProductCard({
         hitSlop={8}
       >
         <Text style={styles.addToCartText}>+</Text>
+      </Pressable>
+
+      <Pressable
+        style={[
+          styles.wishlistButton,
+          wished ? styles.wishlistButtonActive : undefined,
+        ]}
+        onPress={() => toggle(product.id)}
+        hitSlop={6}
+      >
+        <FontAwesome
+          name={wished ? 'heart' : 'heart-o'}
+          color={wished ? '#ef4444' : '#111827'}
+          size={16}
+        />
       </Pressable>
     </Pressable>
   );
@@ -126,5 +145,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 22,
     fontWeight: '700',
+  },
+  wishlistButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wishlistButtonActive: {
+    backgroundColor: '#fee2e2',
   },
 });

@@ -10,6 +10,8 @@ export const STORAGE_KEYS = {
   cart: '@miniapp:cart',
   wishlist: '@miniapp:wishlist',
   wishlistMeta: '@miniapp:wishlist-meta',
+  newProductAssets: '@ecom:newProductAssets',
+  profileOfflinePreview: '@ecom:profileOfflinePreview',
 };
 
 const TOKEN_SERVICE = 'com.ecom:userToken';

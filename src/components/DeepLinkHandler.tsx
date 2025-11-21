@@ -31,7 +31,9 @@ const normalizePath = (url: string) => {
       parsed.hostname.includes('miniecom') ||
       parsed.hostname.includes('ecommerceapp');
     const hostPart = isAppHost ? '' : parsed.hostname;
-    const path = parsed.pathname.startsWith('/') ? parsed.pathname : `/${parsed.pathname}`;
+    const path = parsed.pathname.startsWith('/')
+      ? parsed.pathname
+      : `/${parsed.pathname}`;
     return [hostPart, path.replace(/^\//, '')].filter(Boolean).join('/');
   } catch {
     return url.replace(/^.*?:\/\//, '');
@@ -159,7 +161,11 @@ export default function DeepLinkHandler({
   );
 
   const handleUrl = useCallback(
-    async (url: string, isInitial = false, listener?: (url: string) => void) => {
+    async (
+      url: string,
+      isInitial = false,
+      listener?: (url: string) => void,
+    ) => {
       const parsed = parseDeepLink(url);
       const consumed = await executeLink(parsed);
       if (!consumed && listener) {

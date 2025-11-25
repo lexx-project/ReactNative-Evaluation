@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Alert,
@@ -16,6 +16,11 @@ import {
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  BiometricStrength,
+  isSensorAvailable,
+  simplePrompt,
+} from '@sbaiahmed1/react-native-biometrics';
+import {
   Asset,
   CameraOptions,
   ImageLibraryOptions,
@@ -23,11 +28,18 @@ import {
   launchImageLibrary,
 } from 'react-native-image-picker';
 import { MainStackParamList } from '../navigation/MainStack';
-import { STORAGE_KEYS } from '../utils/storage';
+import { useAuth } from '../context/AuthContext';
+import { resetToLogin } from '../navigation/navigationRef';
+import { loadToken, resetSecureToken, STORAGE_KEYS } from '../utils/storage';
 
 type ProfileRouteProp = RouteProp<MainStackParamList, 'Profile'>;
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type StoredProductAsset = { uri?: string; fileName?: string | null };
+type SensorState = {
+  available: boolean;
+  biometryType?: string;
+  error?: string;
+};
 
 const PRODUCT_ASSET_KEY = STORAGE_KEYS.newProductAssets;
 const OFFLINE_PREVIEW_KEY = STORAGE_KEYS.profileOfflinePreview;
@@ -35,11 +47,18 @@ const OFFLINE_PREVIEW_KEY = STORAGE_KEYS.profileOfflinePreview;
 export default function ProfileScreen() {
   const route = useRoute<ProfileRouteProp>();
   const navigation = useNavigation<NavigationProp>();
+  const { login, logout } = useAuth();
   const userId = route.params?.userId ?? '';
   const [photo, setPhoto] = useState<Asset | null>(null);
   const [productImages, setProductImages] = useState<StoredProductAsset[]>([]);
   const [offlinePreview, setOfflinePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [sensorState, setSensorState] = useState<SensorState>({
+    available: false,
+  });
+  const [securityStatus, setSecurityStatus] = useState('');
+  const [pinFallbackNote, setPinFallbackNote] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
 
   const initials = useMemo(() => {
     if (!userId) {
@@ -343,6 +362,191 @@ export default function ProfileScreen() {
     });
   };
 
+  const detectNotEnrolled = (message?: string) => {
+    const normalized = (message ?? '').toLowerCase();
+    return (
+      normalized.includes('not enrolled') ||
+      normalized.includes('not_enrolled') ||
+      normalized.includes('no biometrics enrolled')
+    );
+  };
+
+  const detectLockout = (message?: string) => {
+    const normalized = (message ?? '').toLowerCase();
+    return (
+      normalized.includes('lockout') ||
+      normalized.includes('locked') ||
+      normalized.includes('temporary_disabled')
+    );
+  };
+
+  const handleLockout = useCallback(
+    async (reason?: string) => {
+      // Saat sensor terkunci kita hapus token agar percobaan brute force tidak bisa diteruskan.
+      await resetSecureToken();
+      await logout(() => resetToLogin());
+      Alert.alert(
+        'Keamanan',
+        reason ??
+          'Sensor terkunci. Token dihapus dan Anda keluar demi keamanan.',
+      );
+    },
+    [logout],
+  );
+
+  const refreshSensorAvailability = useCallback(async () => {
+    try {
+      const info = await isSensorAvailable();
+      setSensorState(info);
+      console.log('Sensor availability refreshed:', info);
+      return info;
+    } catch (err) {
+      const fallback: SensorState = {
+        available: false, 
+        error: (err as Error)?.message,
+      };
+      setSensorState(fallback);
+      return fallback;
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshSensorAvailability();
+  }, [refreshSensorAvailability]);
+
+  const buildPromptMessage = (type?: string) =>
+    type === 'FaceID'
+      ? 'Pindai Wajah untuk Masuk'
+      : 'Tempelkan Jari atau Pindai Wajah untuk Masuk';
+
+  const handleManualLoginSuccess = async () => {
+    const simulatedToken = `token-${userId || 'user'}-${Date.now()}`;
+    await login(simulatedToken);
+    setSecurityStatus('Token disimpan di Keychain. Login Cepat siap dipakai.');
+    Alert.alert(
+      'Login Manual',
+      'Token berhasil disimpan aman untuk Login Cepat biometrik.',
+    );
+  };
+
+  const handleQuickLogin = async () => {
+    setSecurityStatus('');
+    setPinFallbackNote('');
+    const info = await refreshSensorAvailability();
+    if (!info.available) {
+      if (detectNotEnrolled(info.error)) {
+        const message =
+          'Biometrik (sidik jari/Face ID) belum diatur di HP ini. Silakan atur di Settings';
+        setPinFallbackNote(
+          'Autentikasi biometrik ditunda. Gunakan PIN/manual terlebih dahulu.',
+        );
+        Alert.alert('Butuh Setup', message);
+      } else {
+        Alert.alert(
+          'Biometrik tidak tersedia',
+          info.error || 'Sensor tidak tersedia.',
+        );
+      }
+      return;
+    }
+
+    const promptMessage = buildPromptMessage(info.biometryType);
+
+    try {
+      // Pakai strength "weak" agar Face Unlock OEM yang tidak dikategorikan strong tetap ter-cover.
+      const { success, error } = await simplePrompt(promptMessage, {
+        biometricStrength: BiometricStrength.Weak,
+      });
+
+      if (success) {
+        const token = await loadToken();
+        if (token) {
+          await login(token);
+          setSecurityStatus('Login Cepat berhasil memakai token tersimpan.');
+          navigation.navigate('MainBottomTabs');
+        } else {
+          setSecurityStatus('Tidak ada token tersimpan. Login manual dulu.');
+          Alert.alert(
+            'Info',
+            'Tidak ada token tersimpan. Lakukan login manual dulu.',
+          );
+        }
+        return;
+      }
+
+      if (detectLockout(error)) {
+        await handleLockout('Sensor terkunci karena percobaan gagal.');
+        return;
+      }
+
+      setSecurityStatus(
+        error ? `Autentikasi dibatalkan: ${error}` : 'Autentikasi dibatalkan.',
+      );
+    } catch (err) {
+      const message = (err as Error)?.message ?? '';
+      if (detectLockout(message)) {
+        await handleLockout('Sensor terkunci oleh sistem.');
+        return;
+      }
+      Alert.alert('Error', 'Terjadi kesalahan pada sensor');
+    }
+  };
+
+  const processPayment = () => {
+    setPaymentStatus('Transfer Rp 500.000 sedang diproses.');
+    Alert.alert('Berhasil', 'Transfer Rp 500.000 diproses.');
+  };
+
+  const handlePaymentConfirmation = async () => {
+    setPaymentStatus('');
+    const info = await refreshSensorAvailability();
+    if (!info.available) {
+      if (detectNotEnrolled(info.error)) {
+        Alert.alert(
+          'Butuh Setup',
+          'Biometrik (sidik jari/Face ID) belum diatur di HP ini. Silakan atur di Settings',
+        );
+        setPinFallbackNote(
+          'Transaksi butuh PIN karena biometrik belum disiapkan.',
+        );
+      } else {
+        Alert.alert(
+          'Biometrik tidak tersedia',
+          info.error || 'Sensor tidak tersedia.',
+        );
+      }
+      return;
+    }
+
+    try {
+      const { success, error } = await simplePrompt(
+        'Konfirmasi Transfer Rp 500.000',
+        { biometricStrength: BiometricStrength.Weak },
+      );
+
+      if (success) {
+        processPayment();
+        setPaymentStatus('Transaksi diproses setelah verifikasi biometrik.');
+        return;
+      }
+
+      if (detectLockout(error)) {
+        await handleLockout('Sensor terkunci saat konfirmasi transfer.');
+        return;
+      }
+
+      Alert.alert('Transaksi Dibatalkan', 'Transaksi Dibatalkan');
+      setPaymentStatus('Transaksi dibatalkan atau dibatalkan pengguna.');
+    } catch (err) {
+      const message = (err as Error)?.message ?? '';
+      if (detectLockout(message)) {
+        await handleLockout('Sensor terkunci saat konfirmasi transfer.');
+        return;
+      }
+      Alert.alert('Error', 'Terjadi kesalahan pada sensor');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
@@ -473,6 +677,57 @@ export default function ProfileScreen() {
               Belum ada preview offline yang disimpan.
             </Text>
           )}
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.securityCard}>
+          <View style={styles.galleryHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.galleryTitle}>Biometrik & Login Cepat</Text>
+              <Text style={styles.help}>
+                Sensor:{' '}
+                {sensorState.available
+                  ? sensorState.biometryType || 'Biometrics'
+                  : 'Tidak tersedia'}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.linkButton}
+              onPress={refreshSensorAvailability}
+            >
+              <Text style={styles.linkText}>Cek Sensor</Text>
+            </Pressable>
+          </View>
+
+          {pinFallbackNote ? (
+            <Text style={styles.warningText}>{pinFallbackNote}</Text>
+          ) : null}
+          {securityStatus ? (
+            <Text style={styles.statusText}>{securityStatus}</Text>
+          ) : null}
+
+          <View style={styles.actions}>
+            {/* <Pressable
+              style={styles.button}
+              onPress={handleManualLoginSuccess}
+            ></Pressable> */}
+            <Pressable style={styles.buttonAlt} onPress={handleQuickLogin}>
+              <Text style={styles.buttonTextAlt}>Login Cepat</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={[styles.smallButton, styles.primaryGhost]}
+            onPress={handlePaymentConfirmation}
+          >
+            <Text style={styles.smallButtonText}>
+              Konfirmasi Transfer Rp 500.000
+            </Text>
+          </Pressable>
+          {paymentStatus ? (
+            <Text style={styles.meta}>{paymentStatus}</Text>
+          ) : null}
         </View>
       </View>
     </SafeAreaView>
@@ -664,5 +919,24 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 12,
+  },
+  securityCard: {
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  statusText: {
+    color: '#065f46',
+    fontWeight: '600',
+  },
+  warningText: {
+    color: '#b45309',
+    fontWeight: '600',
+  },
+  primaryGhost: {
+    backgroundColor: '#e0f2fe',
   },
 });

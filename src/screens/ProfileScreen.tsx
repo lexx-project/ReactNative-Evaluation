@@ -13,6 +13,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import Geolocation, {
+  GeolocationError,
+  GeolocationResponse,
+} from '@react-native-community/geolocation';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -59,6 +63,16 @@ export default function ProfileScreen() {
   const [securityStatus, setSecurityStatus] = useState('');
   const [pinFallbackNote, setPinFallbackNote] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
+  const [shippingCoords, setShippingCoords] =
+    useState<GeolocationResponse['coords'] | null>(null);
+  const [shippingError, setShippingError] = useState('');
+  const [trackingCoords, setTrackingCoords] =
+    useState<GeolocationResponse['coords'] | null>(null);
+  const [trackingWatchId, setTrackingWatchId] = useState<number | null>(null);
+  const [trackingStatus, setTrackingStatus] = useState('');
+  const [geofenceWatchId, setGeofenceWatchId] = useState<number | null>(null);
+  const [geofenceStatus, setGeofenceStatus] = useState('');
+  const [networkStatus, setNetworkStatus] = useState('');
 
   const initials = useMemo(() => {
     if (!userId) {
@@ -492,6 +506,198 @@ export default function ProfileScreen() {
     }
   };
 
+  const requestLocationPermission = async () => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: 'Izin Lokasi',
+        message:
+          'Kami butuh lokasi Anda untuk menampilkan toko terdekat secara akurat.',
+        buttonPositive: 'OK',
+        buttonNegative: 'Tolak',
+      },
+    );
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  };
+
+  const fetchShippingLocation = async () => {
+    const allowed = await requestLocationPermission();
+    if (!allowed) {
+      Alert.alert(
+        'Izin dibutuhkan',
+        'Aktifkan izin lokasi agar ongkir bisa dihitung otomatis.',
+      );
+      return;
+    }
+
+    setShippingError('');
+    Geolocation.getCurrentPosition(
+      (position: GeolocationResponse) => {
+        setShippingCoords(position.coords);
+      },
+      (error: GeolocationError) => {
+        setShippingError(error.message);
+        if (error.code === 3) {
+          Alert.alert('Error', 'Periksa koneksi GPS Anda');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  };
+
+  const startLiveTracking = async () => {
+    if (trackingWatchId !== null) {
+      return;
+    }
+    const allowed = await requestLocationPermission();
+    if (!allowed) {
+      Alert.alert('Izin dibutuhkan', 'Aktifkan lokasi untuk memulai tracking.');
+      return;
+    }
+
+    const id = Geolocation.watchPosition(
+      (position: GeolocationResponse) => {
+        setTrackingCoords(position.coords);
+        setTrackingStatus('Tracking aktif setiap 20 meter.');
+      },
+      (error: GeolocationError) => {
+        setTrackingStatus(error.message);
+      },
+      { enableHighAccuracy: true, distanceFilter: 20 },
+    );
+    setTrackingWatchId(id);
+  };
+
+  const stopLiveTracking = () => {
+    if (trackingWatchId !== null) {
+      Geolocation.clearWatch(trackingWatchId);
+      setTrackingWatchId(null);
+      setTrackingStatus('Tracking dihentikan.');
+    }
+  };
+
+  const sendLocationToServer = async (position: GeolocationResponse) => {
+    try {
+      setNetworkStatus('Mengirim lokasi ke server...');
+      await fetch('https://dummyjson.com/http/200', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          timestamp: position.timestamp,
+        }),
+      });
+      setNetworkStatus('Lokasi terkirim tanpa spam server.');
+    } catch (err) {
+      setNetworkStatus('Gagal mengirim lokasi.');
+    }
+  };
+
+  const syncLocationForAnalytics = async () => {
+    const allowed = await requestLocationPermission();
+    if (!allowed) {
+      Alert.alert(
+        'Izin dibutuhkan',
+        'Aktifkan lokasi untuk mengirim data analitik.',
+      );
+      return;
+    }
+
+    Geolocation.getCurrentPosition(
+      (position: GeolocationResponse) => {
+        sendLocationToServer(position);
+      },
+      (_error: GeolocationError) =>
+        setNetworkStatus('Gagal mengambil lokasi analitik.'),
+      {
+        enableHighAccuracy: true,
+        maximumAge: 120000, // Pakai cache 2 menit agar tidak sering request GPS & tidak sering push ke server.
+      },
+    );
+  };
+
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) => {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371e3;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const mainStore = useMemo(
+    () => ({ latitude: -6.175392, longitude: 106.827153 }),
+    [],
+  );
+
+  const startGeofencing = async () => {
+    if (geofenceWatchId !== null) {
+      return;
+    }
+    const allowed = await requestLocationPermission();
+    if (!allowed) {
+      Alert.alert('Izin dibutuhkan', 'Aktifkan lokasi untuk cek promo radius.');
+      return;
+    }
+
+    const id = Geolocation.watchPosition(
+      (position: GeolocationResponse) => {
+        const { latitude, longitude } = position.coords;
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          mainStore.latitude,
+          mainStore.longitude,
+        );
+        setGeofenceStatus(`Jarak ke toko utama: ${distance.toFixed(0)} m`);
+        if (distance < 100) {
+          Alert.alert('PROMO DEKAT TOKO!');
+          Geolocation.clearWatch(id);
+          setGeofenceWatchId(null);
+          setGeofenceStatus('Tracking promo dimatikan setelah alert.');
+        }
+      },
+      (error: GeolocationError) => setGeofenceStatus(error.message),
+      { enableHighAccuracy: true, distanceFilter: 50 },
+    );
+    setGeofenceWatchId(id);
+  };
+
+  const stopGeofencing = () => {
+    if (geofenceWatchId !== null) {
+      Geolocation.clearWatch(geofenceWatchId);
+      setGeofenceWatchId(null);
+      setGeofenceStatus('Tracking promo dihentikan manual.');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (trackingWatchId !== null) {
+        Geolocation.clearWatch(trackingWatchId);
+      }
+      if (geofenceWatchId !== null) {
+        Geolocation.clearWatch(geofenceWatchId);
+      }
+    };
+  }, [trackingWatchId, geofenceWatchId]);
+
   const processPayment = () => {
     setPaymentStatus('Transfer Rp 500.000 sedang diproses.');
     Alert.alert('Berhasil', 'Transfer Rp 500.000 diproses.');
@@ -677,6 +883,70 @@ export default function ProfileScreen() {
               Belum ada preview offline yang disimpan.
             </Text>
           )}
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.locationCard}>
+          <Text style={styles.galleryTitle}>Lokasi & Tracking</Text>
+          <Text style={styles.help}>
+            Minta izin lokasi, ambil posisi sekali, atau tracking jarak jauh.
+          </Text>
+
+          <View style={styles.secondaryActions}>
+            <Pressable style={styles.smallButton} onPress={fetchShippingLocation}>
+              <Text style={styles.smallButtonText}>Hitung Ongkir (Sekali)</Text>
+            </Pressable>
+            <Pressable
+              style={styles.smallButton}
+              onPress={trackingWatchId ? stopLiveTracking : startLiveTracking}
+            >
+              <Text style={styles.smallButtonText}>
+                {trackingWatchId ? 'Stop Tracking' : 'Mulai Tracking (20m)'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.smallButton}
+              onPress={geofenceWatchId ? stopGeofencing : startGeofencing}
+            >
+              <Text style={styles.smallButtonText}>
+                {geofenceWatchId ? 'Stop Geofence' : 'Promo Radius 100m'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.smallButton}
+              onPress={syncLocationForAnalytics}
+            >
+              <Text style={styles.smallButtonText}>Kirim Lokasi ke Server</Text>
+            </Pressable>
+          </View>
+
+          {shippingCoords ? (
+            <Text style={styles.meta}>
+              Ongkir memakai lokasi: {shippingCoords.latitude.toFixed(6)},{' '}
+              {shippingCoords.longitude.toFixed(6)}
+            </Text>
+          ) : null}
+          {shippingError ? (
+            <Text style={styles.warningText}>{shippingError}</Text>
+          ) : null}
+
+          {trackingCoords ? (
+            <Text style={styles.meta}>
+              Tracking: {trackingCoords.latitude.toFixed(6)},{' '}
+              {trackingCoords.longitude.toFixed(6)}
+            </Text>
+          ) : null}
+          {trackingStatus ? (
+            <Text style={styles.statusText}>{trackingStatus}</Text>
+          ) : null}
+
+          {geofenceStatus ? (
+            <Text style={styles.meta}>{geofenceStatus}</Text>
+          ) : null}
+          {networkStatus ? (
+            <Text style={styles.meta}>{networkStatus}</Text>
+          ) : null}
         </View>
 
         <View style={styles.divider} />
@@ -914,6 +1184,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderWidth: 1,
     borderColor: '#e5e7eb',
+  },
+  locationCard: {
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
   },
   offlinePreviewImage: {
     width: 140,

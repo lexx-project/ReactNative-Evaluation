@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -9,11 +10,17 @@ import {
   View,
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
+import {
+  BiometricStrength,
+  isSensorAvailable,
+  simplePrompt,
+} from '@sbaiahmed1/react-native-biometrics';
 import apiClient from '../api/client';
 import { RootAuthStackParamList } from '../navigation/types';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../hooks/useCart';
 import { loadProductDetailWithCache } from '../utils/productDetail';
+import { loadToken, resetSecureToken } from '../utils/storage';
 
 type LoginNavigation = NavigationProp<RootAuthStackParamList>;
 
@@ -25,6 +32,19 @@ export default function LoginScreen() {
   const navigation = useNavigation<LoginNavigation>();
   const { login, consumePendingLink } = useAuth();
   const { addToCart } = useCart();
+  const buildPromptMessage = (type?: string) =>
+    type === 'FaceID'
+      ? 'Pindai Wajah untuk Masuk'
+      : 'Tempelkan Jari atau Pindai Wajah untuk Masuk';
+
+  const detectNotEnrolled = (message?: string) => {
+    const normalized = (message ?? '').toLowerCase();
+    return (
+      normalized.includes('not enrolled') ||
+      normalized.includes('not_enrolled') ||
+      normalized.includes('no biometrics enrolled')
+    );
+  };
 
   const fallbackLocalLogin = async (reason: string) => {
     const localToken = `custom-${username || 'user'}-${Date.now()}`;
@@ -108,6 +128,70 @@ export default function LoginScreen() {
     }
   };
 
+  const handleBiometricLogin = async () => {
+    setStatusMessage('');
+    try {
+      const info = await isSensorAvailable();
+      if (!info.available) {
+        if (detectNotEnrolled(info.error)) {
+          Alert.alert(
+            'Butuh Setup',
+            'Biometrik (sidik jari/Face ID) belum diatur di HP ini.',
+          );
+        } else {
+          Alert.alert(
+            'Biometrik tidak tersedia',
+            info.error || 'Sensor tidak tersedia.',
+          );
+          console.log('Biometric unavailable:', info.error);
+        }
+        return;
+      }
+
+      const { success, error } = await simplePrompt(
+        buildPromptMessage(info.biometryType),
+        {
+          biometricStrength: BiometricStrength.Weak,
+        },
+      );
+
+      if (success) {
+        const token = await loadToken();
+        if (token) {
+          await login(token);
+          setStatusMessage('Login Cepat berhasil.');
+          navigation.navigate('MainApp');
+        } else {
+          Alert.alert('Info', 'Token belum tersedia. Login manual dulu.');
+        }
+        return;
+      }
+
+      const errorText = (error ?? '').toLowerCase();
+      const isLockout =
+        errorText.includes('lockout') || errorText.includes('locked');
+      if (isLockout) {
+        await resetSecureToken();
+        setStatusMessage(
+          'Sensor terkunci. Token dihapus, silakan login manual.',
+        );
+        return;
+      }
+
+      setStatusMessage('Autentikasi dibatalkan.');
+    } catch (err) {
+      const message = (err as Error)?.message?.toLowerCase?.() ?? '';
+      if (message.includes('lockout') || message.includes('locked')) {
+        await resetSecureToken();
+        setStatusMessage(
+          'Sensor terkunci. Token dihapus, silakan login manual.',
+        );
+        return;
+      }
+      Alert.alert('Error', 'Terjadi kesalahan pada sensor');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
@@ -141,6 +225,15 @@ export default function LoginScreen() {
           ) : (
             <Text style={styles.buttonText}>Login</Text>
           )}
+        </Pressable>
+
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={handleBiometricLogin}
+        >
+          <Text style={styles.secondaryButtonText}>
+            Login Cepat (Biometrik)
+          </Text>
         </Pressable>
 
         {statusMessage ? (
@@ -208,5 +301,17 @@ const styles = StyleSheet.create({
   status: {
     textAlign: 'center',
     color: '#4c566a',
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#1e90ff',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#1e90ff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
